@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/cubit/level_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/cubit/achievements_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/pages/pr_splash_screen.dart';
@@ -27,6 +28,7 @@ class PersonalRiseDailyGrowth extends StatelessWidget {
             BlocProvider(
               create: (ctx) => AchievementsCubit(ctx.read<LevelCubit>()),
             ),
+              BlocProvider(create: (_) => HabitsCubit()..seedDemoPositive()),
           ],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,

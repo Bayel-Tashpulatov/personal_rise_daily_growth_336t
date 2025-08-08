@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:personal_rise_daily_growth_336t/pages/level_screen.dart';
+import 'package:personal_rise_daily_growth_336t/pages/habits/habits_main_page.dart';
+import 'package:personal_rise_daily_growth_336t/pages/levels/level_screen.dart';
+import 'package:personal_rise_daily_growth_336t/pages/settings_page.dart';
+import 'package:personal_rise_daily_growth_336t/pages/statistics_page.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class _NavItem {
@@ -28,9 +31,9 @@ class _PrBottomNavBarState extends State<PrBottomNavBar> {
 
   static const _pages = [
     LevelScreen(),
-    TestPage(title: 'Habbits'),
-    TestPage(title: 'Statistics'),
-    TestPage(title: 'Settings'),
+    HabitsMainPage(),
+    StatisticsPage(),
+    SettingsPage(),
   ];
 
   @override
