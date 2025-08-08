@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:personal_rise_daily_growth_336t/pages/level_screen.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class _NavItem {
@@ -26,7 +27,7 @@ class _PrBottomNavBarState extends State<PrBottomNavBar> {
   int _current = 0;
 
   static const _pages = [
-    TestPage(title: 'Levels'),
+    LevelScreen(),
     TestPage(title: 'Habbits'),
     TestPage(title: 'Statistics'),
     TestPage(title: 'Settings'),

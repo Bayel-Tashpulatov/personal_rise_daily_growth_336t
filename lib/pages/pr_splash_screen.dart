@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:personal_rise_daily_growth_336t/components/pr_bottom_nav_bar.dart';
+import 'package:personal_rise_daily_growth_336t/widgets/pr_bottom_nav_bar.dart';
 
 class PrSplashScreen extends StatefulWidget {
   const PrSplashScreen({super.key});
