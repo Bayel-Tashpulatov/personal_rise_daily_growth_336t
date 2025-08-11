@@ -28,7 +28,7 @@ class PersonalRiseDailyGrowth extends StatelessWidget {
             BlocProvider(
               create: (ctx) => AchievementsCubit(ctx.read<LevelCubit>()),
             ),
-              BlocProvider(create: (_) => HabitsCubit()..seedDemoPositive()),
+            BlocProvider(create: (_) => HabitsCubit()),
           ],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,

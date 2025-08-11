@@ -50,7 +50,7 @@ class SettingSection extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
-          color: AppColors.bg2,
+          color: AppColors.backgroundLevel2,
           borderRadius: BorderRadius.circular(8.r),
         ),
         child: Column(
@@ -60,7 +60,7 @@ class SettingSection extends StatelessWidget {
               child: Text(
                 title,
                 style: TextStyle(
-                  color: AppColors.text1,
+                  color: AppColors.textlevel1,
                   fontSize: 20.sp,
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w800,

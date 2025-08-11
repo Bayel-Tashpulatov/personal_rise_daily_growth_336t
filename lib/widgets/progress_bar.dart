@@ -1,19 +1,22 @@
 // widgets/progress_bar.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class AppProgressBar extends StatelessWidget {
   final double value;
-  const AppProgressBar({super.key, required this.value});
+  final double? minHeight;
+  const AppProgressBar({super.key, required this.value, this.minHeight});
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(12.r),
       child: LinearProgressIndicator(
         value: value.clamp(0, 1),
-        minHeight: 10,
-        backgroundColor: Colors.white.withOpacity(.07),
-        valueColor: AlwaysStoppedAnimation(const Color(0xFF0062FF)),
+        minHeight: minHeight?.h,
+        backgroundColor: Color(0xFF002FD8).withValues(alpha: 0.3),
+        valueColor: AlwaysStoppedAnimation(AppColors.primaryAccent),
       ),
     );
   }

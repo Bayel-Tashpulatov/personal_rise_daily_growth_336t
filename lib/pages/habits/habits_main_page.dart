@@ -7,6 +7,7 @@ import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/add_bad_habit_flow.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/add_good_habit_flow.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/habit_details_page.dart';
+import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class HabitsMainPage extends StatefulWidget {
   const HabitsMainPage({super.key});
@@ -26,11 +27,11 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
     final list = isPositive ? s.good : s.bad;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1115),
+      backgroundColor: AppColors.backgroundLevel1,
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+          padding: EdgeInsets.fromLTRB(12.w, 16.h, 12.w, 24.h),
           children: [
             _HeaderCard(
               title: isPositive ? 'Start Now!' : 'Watch Out!',
@@ -48,20 +49,22 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
                   : 0, // круглая диаграмма
               positive: isPositive,
             ),
-            SizedBox(height: 18.h),
+            SizedBox(height: 24.h),
 
             Text(
               'My Habbits:', // да, в макете с двумя B :)
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.textlevel1,
                 fontSize: 18.sp,
-                fontWeight: FontWeight.w800,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.36,
               ),
             ),
-            SizedBox(height: 10.h),
+            SizedBox(height: 8.h),
 
             _Segmented(tab: _tab, onChanged: (k) => setState(() => _tab = k)),
-            SizedBox(height: 10.h),
+            SizedBox(height: 17.h),
 
             _AddButton(
               positive: isPositive,
@@ -92,17 +95,22 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
                       );
               },
             ),
-            SizedBox(height: 12.h),
+            SizedBox(height: 8.h),
 
             if (list.isEmpty)
               Padding(
-                padding: EdgeInsets.only(top: 24.h),
+                padding: EdgeInsets.only(top: 170.h),
                 child: Center(
                   child: Text(
                     isPositive
                         ? 'Add your first positive habbit'
                         : 'Add negative habbit if you have one',
-                    style: TextStyle(color: Colors.white.withOpacity(.6)),
+                    style: TextStyle(
+                      color: AppColors.textlevel1.withValues(alpha: 0.60),
+                      fontSize: 12.sp,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
                 ),
               )
@@ -152,14 +160,11 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = positive ? const Color(0xFF19D15C) : const Color(0xFFFF3B30);
-    final ring = positive ? const Color(0xFF1977FF) : const Color(0xFF7F1D1D);
-
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.all(8.w),
       decoration: BoxDecoration(
-        color: const Color(0xFF171A20),
-        borderRadius: BorderRadius.circular(16.r),
+        color: AppColors.backgroundLevel2,
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
         children: [
@@ -170,53 +175,79 @@ class _HeaderCard extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22.sp,
-                    fontWeight: FontWeight.w800,
+                    color: AppColors.textlevel1,
+                    fontSize: 24.sp,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.48,
                   ),
                 ),
                 SizedBox(height: 6.h),
                 Text(
                   subtitle,
-                  style: TextStyle(color: Colors.white.withOpacity(.8)),
+                  style: TextStyle(
+                    color: AppColors.textlevel1,
+                    fontSize: 13.sp,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.26,
+                  ),
                 ),
-                SizedBox(height: 10.h),
+                SizedBox(height: 12.h),
                 Text(
                   moneyLabel,
-                  style: TextStyle(color: Colors.white.withOpacity(.7)),
+                  style: TextStyle(
+                    color: AppColors.textlevel1.withValues(alpha: 0.60),
+                    fontSize: 13.sp,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.26,
+                  ),
                 ),
                 SizedBox(height: 2.h),
                 Text(
-                  (positive ? '\$' : '\$') + moneyValue.toString(),
+                  moneyValue == 0
+                      ? '-'
+                      : (positive ? '\$' : '\$') + moneyValue.toString(),
                   style: TextStyle(
-                    color: positive ? accent : const Color(0xFFFF6B6B),
+                    color: positive
+                        ? AppColors.successAccent
+                        : AppColors.errorAccent,
+                    fontSize: 20.sp,
+                    fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w900,
-                    fontSize: 18.sp,
+                    letterSpacing: 0.40,
                   ),
                 ),
               ],
             ),
           ),
           SizedBox(
-            width: 92.w,
-            height: 92.w,
+            width: 110.w,
+            height: 110.w,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  width: 92.w,
-                  height: 92.w,
+                  width: 110.w,
+                  height: 110.w,
                   child: CircularProgressIndicator(
                     value: progress.clamp(0, 1),
-                    strokeWidth: 10.w,
-                    backgroundColor: Colors.white.withOpacity(.06),
-                    valueColor: AlwaysStoppedAnimation(ring),
+                    strokeWidth: 12.w,
+                    backgroundColor: AppColors.primaryAccent.withValues(
+                      alpha: 0.30,
+                    ),
+                    valueColor: AlwaysStoppedAnimation(
+                      positive ? AppColors.primaryAccent : Colors.transparent,
+                    ),
                   ),
                 ),
-                Icon(
-                  positive ? Icons.local_fire_department : Icons.report_problem,
-                  color: positive ? Colors.orangeAccent : Colors.redAccent,
-                  size: 24.w,
+                Image.asset(
+                  positive
+                      ? 'assets/icons/fire_ring.png'
+                      : 'assets/icons/problem_ring.png',
+                  width: 44.w,
+                  height: 44.w,
                 ),
               ],
             ),
@@ -239,9 +270,9 @@ class _Segmented extends StatelessWidget {
     final isGood = tab == HabitKind.good;
 
     return Container(
-      height: 40.h,
+      height: 36.h,
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1E24),
+        color: AppColors.backgroundLevel2,
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
@@ -250,13 +281,13 @@ class _Segmented extends StatelessWidget {
             'Positive',
             isGood,
             () => onChanged(HabitKind.good),
-            activeColor: const Color(0xFF19D15C),
+            activeColor: AppColors.successAccent,
           ),
           _segBtn(
             'Negative',
             !isGood,
             () => onChanged(HabitKind.bad),
-            activeColor: const Color(0xFFFF3B30),
+            activeColor: Color(0xFFCF0B00),
           ),
         ],
       ),
@@ -273,17 +304,20 @@ class _Segmented extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 360),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: active ? activeColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(10.r),
+            color: active ? activeColor : AppColors.backgroundLevel2,
+            borderRadius: BorderRadius.circular(12.r),
           ),
           child: Text(
             text,
             style: TextStyle(
-              color: active ? Colors.black : Colors.white,
+              color: AppColors.textlevel1,
+              fontSize: 15.sp,
+              fontFamily: 'SF Pro',
               fontWeight: FontWeight.w700,
+              letterSpacing: 0.30,
             ),
           ),
         ),
@@ -300,29 +334,37 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = positive ? const Color(0xFF19D15C) : const Color(0xFFFF3B30);
+    final color = positive ? AppColors.successAccent : AppColors.errorAccent;
     final text = positive ? 'Add New Positive Habit' : 'Add New Negative Habit';
-    final icon = positive ? Icons.add : Icons.arrow_forward;
+    final icon = positive
+        ? 'assets/icons/add_positive.png'
+        : 'assets/icons/add_negative.png';
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 44.h,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.r),
-          border: Border.all(color: color, width: 1.2),
-          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: color, width: 1.w),
+          color: AppColors.backgroundLevel2,
         ),
-        padding: EdgeInsets.symmetric(horizontal: 14.w),
+        padding: EdgeInsets.all(12.w),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 text,
-                style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13.sp,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.26,
+                ),
               ),
             ),
-            Icon(icon, color: color),
+            Image.asset(icon, width: 20.w, height: 20.h),
           ],
         ),
       ),

@@ -26,7 +26,6 @@ Future<void> showAddGoodHabitFlow(
     context: context,
     barrierLabel: 'add-good-habit',
     barrierDismissible: false,
-    barrierColor: Colors.black.withOpacity(.45),
     transitionDuration: const Duration(milliseconds: 200),
     pageBuilder: (_, _, _) {
       return _AddGoodHabitFlow(onDone: onDone);

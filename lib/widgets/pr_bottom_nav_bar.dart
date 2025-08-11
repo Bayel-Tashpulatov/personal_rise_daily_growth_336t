@@ -52,7 +52,7 @@ class _PrBottomNavBarState extends State<PrBottomNavBar> {
               child: Container(
                 height: 64.h,
                 decoration: BoxDecoration(
-                  color: AppColors.bg2,
+                  color: AppColors.backgroundLevel2,
                   borderRadius: BorderRadius.circular(40.r),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: .05),
