@@ -7,9 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
-import 'package:personal_rise_daily_growth_336t/models/habit_entry.dart';
+import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
 
 class StatisticsPage extends StatefulWidget {
   const StatisticsPage({super.key});
@@ -31,12 +32,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<HabitsCubit>().state;
-    final entries = state.entries;
+    final logs = state.logs;
 
     // сгруппируем по месяцу
     final byMonth = groupBy(
-      entries,
-      (HabitEntry e) => DateTime(e.date.year, e.date.month),
+      logs,
+      (HabitLog e) => DateTime(e.date.year, e.date.month),
     );
 
     // только доступные месяцы (≤ текущего)
@@ -48,58 +49,62 @@ class _StatisticsPageState extends State<StatisticsPage> {
     // если выбранный месяц пустой, подвинем на ближайший имеющийся
     if (availableMonths.isNotEmpty &&
         !availableMonths.contains(_selectedMonth)) {
-      _selectedMonth = availableMonths.last; // последний доступный
+      _selectedMonth = availableMonths.last;
     }
 
-    // данные для графика (12 месяцев вокруг выбранного)
+    // данные для графика (12 месяцев года выбранного месяца)
     final monthsRange = _generateYearWindow(_selectedMonth);
     final chartSaved = <double>[];
     final chartLost = <double>[];
     for (final m in monthsRange) {
-      final list = byMonth[m] ?? const <HabitEntry>[];
+      final list = byMonth[m] ?? const <HabitLog>[];
       final saved = list
-          .where((e) => e.type == EntryType.goodDone)
+          .where((e) => e.amount > 0)
           .fold<int>(0, (s, e) => s + e.amount);
       final lost = list
-          .where((e) => e.type == EntryType.badSlip)
+          .where((e) => e.amount < 0)
           .fold<int>(0, (s, e) => s + (-e.amount));
       chartSaved.add(saved.toDouble());
       chartLost.add(lost.toDouble());
     }
 
     // агрегаты по выбранному месяцу
-    final selectedList = byMonth[_selectedMonth] ?? const <HabitEntry>[];
+    final selectedList = byMonth[_selectedMonth] ?? const <HabitLog>[];
     final monthSaved = selectedList
-        .where((e) => e.type == EntryType.goodDone)
+        .where((e) => e.amount > 0)
         .fold<int>(0, (s, e) => s + e.amount);
     final monthLost = selectedList
-        .where((e) => e.type == EntryType.badSlip)
+        .where((e) => e.amount < 0)
         .fold<int>(0, (s, e) => s + (-e.amount));
 
     // топы (по сумме за выбранный месяц)
     final savedByHabit = <String, int>{};
     final lostByHabit = <String, int>{};
     for (final e in selectedList) {
-      if (e.type == EntryType.goodDone) {
+      if (e.amount > 0) {
         savedByHabit[e.habitId] = (savedByHabit[e.habitId] ?? 0) + e.amount;
-      } else {
+      } else if (e.amount < 0) {
         lostByHabit[e.habitId] = (lostByHabit[e.habitId] ?? 0) + (-e.amount);
       }
     }
 
     List<_HabitAgg> topGood = savedByHabit.entries
-        .map((kv) => _HabitAgg(_findHabit(state, kv.key)!, kv.value))
+        .map((kv) => _HabitAgg(_findHabit(state, kv.key), kv.value))
+        .where((agg) => agg.habit != null)
+        .map((agg) => _HabitAgg(agg.habit!, agg.amount))
         .sorted((a, b) => b.amount.compareTo(a.amount))
         .take(3)
         .toList();
 
     List<_HabitAgg> topBad = lostByHabit.entries
-        .map((kv) => _HabitAgg(_findHabit(state, kv.key)!, kv.value))
+        .map((kv) => _HabitAgg(_findHabit(state, kv.key), kv.value))
+        .where((agg) => agg.habit != null)
+        .map((agg) => _HabitAgg(agg.habit!, agg.amount))
         .sorted((a, b) => b.amount.compareTo(a.amount))
         .take(3)
         .toList();
 
-    final hasAny = entries.isNotEmpty;
+    final hasAny = logs.isNotEmpty;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1115),
@@ -198,8 +203,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 color: const Color(0xFF19D15C),
               ),
               if (topGood.isEmpty)
-                _EmptyRow(text: 'No positive activity this month'),
-              ..._buildTopList(topGood, positive: true),
+                _EmptyRow(text: 'No positive activity this month')
+              else
+                ..._buildTopList(topGood, positive: true),
               SizedBox(height: 14.h),
 
               _SectionHeader(
@@ -208,8 +214,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 color: const Color(0xFFFF3B30),
               ),
               if (topBad.isEmpty)
-                _EmptyRow(text: 'No negative activity this month'),
-              ..._buildTopList(topBad, positive: false),
+                _EmptyRow(text: 'No negative activity this month')
+              else
+                ..._buildTopList(topBad, positive: false),
             ],
           ],
         ),
@@ -228,13 +235,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
     ];
   }
 
-  HabitItem? _findHabit(HabitsState s, String id) {
+  Habit? _findHabit(HabitsState s, String id) {
     return s.good.firstWhereOrNull((h) => h.id == id) ??
         s.bad.firstWhereOrNull((h) => h.id == id);
   }
 
   List<DateTime> _generateYearWindow(DateTime anchor) {
-    // от Jan до Dec того же года (для простоты как в макете)
     final year = anchor.year;
     return List.generate(12, (i) => DateTime(year, i + 1));
   }
@@ -308,8 +314,9 @@ class _ChartCard extends StatelessWidget {
                       interval: 1,
                       getTitlesWidget: (v, _) {
                         final i = v.toInt();
-                        if (i < 0 || i >= months.length)
+                        if (i < 0 || i >= months.length) {
                           return const SizedBox.shrink();
+                        }
                         final m = months[i];
                         final label = DateFormat('MMM').format(m);
                         final bold =
@@ -393,7 +400,7 @@ class _EmptyChart extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Positioned.fill(child: Container()), // просто держатель
+        Positioned.fill(child: Container()),
         Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -444,7 +451,7 @@ class _TotalCard extends StatelessWidget {
           Text(label, style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 6),
           Text(
-            (positive ? '\$' : '\$') + NumberFormat('#,###').format(value),
+            '\$${NumberFormat('#,###').format(value)}',
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w900,
@@ -507,7 +514,7 @@ class _EmptyRow extends StatelessWidget {
 }
 
 class _HabitAgg {
-  final HabitItem habit;
+  final Habit? habit;
   final int amount;
   _HabitAgg(this.habit, this.amount);
 }
@@ -539,6 +546,10 @@ class _SwipeCardsState extends State<_SwipeCards> {
             itemCount: widget.items.length,
             itemBuilder: (_, i) {
               final it = widget.items[i];
+              final habit = it.habit;
+              if (habit == null) {
+                return const SizedBox.shrink();
+              }
               return Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.all(12),
@@ -550,7 +561,7 @@ class _SwipeCardsState extends State<_SwipeCards> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      it.habit.title,
+                      habit.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -560,7 +571,7 @@ class _SwipeCardsState extends State<_SwipeCards> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      it.habit.subtitle,
+                      habit.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.white70),
@@ -608,7 +619,7 @@ Future<DateTime?> _showMonthPicker(
 ) async {
   if (available.isEmpty) return null;
 
-  final months = available..sort();
+  final months = [...available]..sort();
   int initial = months.indexWhere(
     (m) => m.year == selected.year && m.month == selected.month,
   );

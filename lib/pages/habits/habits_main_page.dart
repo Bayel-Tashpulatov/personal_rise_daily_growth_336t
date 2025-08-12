@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
+import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/add_bad_habit_flow.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/add_good_habit_flow.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/habit_details_page.dart';
@@ -24,7 +25,12 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
     final s = context.watch<HabitsCubit>().state;
 
     final isPositive = _tab == HabitKind.good;
-    final list = isPositive ? s.good : s.bad;
+    final habits = isPositive ? s.good : s.bad;
+    final vms = _buildVms(habits, s.logs);
+
+    final todayPercent = _todayGoodPercent(s.good, s.logs); // 0..100
+    final weekEarned = _weekMoney(s.logs, positive: true);
+    final weekLost = _weekMoney(s.logs, positive: false);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLevel1,
@@ -36,23 +42,21 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
             _HeaderCard(
               title: isPositive ? 'Start Now!' : 'Watch Out!',
               subtitle: isPositive
-                  ? (s.todayGoodPercent > 0
-                        ? 'Today You completed ${s.todayGoodPercent}% of your habbits'
+                  ? (todayPercent > 0
+                        ? 'Today You completed ${todayPercent.round()}% of your habbits'
                         : '-')
                   : '-',
               moneyLabel: isPositive
                   ? 'This Week You Earned:'
                   : 'This Week You Lost:',
-              moneyValue: isPositive ? s.weekEarned : s.weekLost,
-              progress: isPositive
-                  ? s.todayGoodPercent / 100
-                  : 0, // круглая диаграмма
+              moneyValue: isPositive ? weekEarned : weekLost,
+              progress: isPositive ? (todayPercent / 100).clamp(0, 1) : 0,
               positive: isPositive,
             ),
             SizedBox(height: 24.h),
 
             Text(
-              'My Habbits:', // да, в макете с двумя B :)
+              'My Habbits:',
               style: TextStyle(
                 color: AppColors.textlevel1,
                 fontSize: 18.sp,
@@ -68,7 +72,6 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
 
             _AddButton(
               positive: isPositive,
-              // внутри HabitsMainPage, в _AddButton(onTap: ...)
               onTap: () {
                 isPositive
                     ? showAddGoodHabitFlow(
@@ -85,11 +88,10 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
                     : showAddBadHabitFlow(
                         context,
                         onDone: (draft) {
-                          // Сохраняем в Cubit/Hive
                           context.read<HabitsCubit>().addBad(
                             name: draft.name.trim(),
                             description: draft.description.trim(),
-                            // goal можно тоже сохранить, если добавил поле в модель
+                            goal: draft.goal.trim(), // ⭐ добавили
                           );
                         },
                       );
@@ -97,7 +99,7 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
             ),
             SizedBox(height: 8.h),
 
-            if (list.isEmpty)
+            if (vms.isEmpty)
               Padding(
                 padding: EdgeInsets.only(top: 170.h),
                 child: Center(
@@ -115,18 +117,15 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
                 ),
               )
             else ...[
-              for (final h in list)
+              for (final vm in vms)
                 _HabitCard(
-                  item: h,
+                  item: vm,
                   onTap: () {
+                    final habit = habits.firstWhere((h) => h.id == vm.id);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => HabitDetailsPage(
-                          habit: list.firstWhere((item) => item.id == h.id),
-                          frequencyLabel:
-                              'Everyday', // для good — подставь реальную
-                        ),
+                        builder: (_) => HabitDetailsPage(habit: habit),
                       ),
                     );
                   },
@@ -138,14 +137,82 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
       ),
     );
   }
+
+  // ===== helpers: расчёты из логов =====
+
+  double _todayGoodPercent(List<Habit> good, List<HabitLog> logs) {
+    if (good.isEmpty) return 0;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final doneTodayIds = logs
+        .where((l) => l.amount > 0 && DateUtils.isSameDay(l.date, today))
+        .map((l) => l.habitId)
+        .toSet();
+    final percent = (doneTodayIds.length / good.length) * 100.0;
+    return percent.clamp(0, 100);
+    // При другой логике «процента» поменяй формулу
+  }
+
+  int _weekMoney(List<HabitLog> logs, {required bool positive}) {
+    final now = DateTime.now();
+    final from = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 6));
+    int sum = 0;
+    for (final l in logs) {
+      final d = DateUtils.dateOnly(l.date);
+      if (d.isBefore(from) || d.isAfter(DateUtils.dateOnly(now))) continue;
+      if (positive && l.amount > 0) sum += l.amount;
+      if (!positive && l.amount < 0) sum += -l.amount; // берём модуль для Lost
+    }
+    return sum;
+  }
+
+  List<HabitVm> _buildVms(List<Habit> habits, List<HabitLog> logs) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    return habits.map((h) {
+      final hLogs = logs.where((l) => l.habitId == h.id);
+      final todayCount = hLogs
+          .where((l) => DateUtils.isSameDay(l.date, today))
+          .length;
+      final moneyAbs = hLogs.fold<int>(0, (s, l) => s + l.amount).abs();
+      return HabitVm(
+        id: h.id,
+        title: h.name,
+        subtitle: h.description,
+        kind: h.kind,
+        todayCount: todayCount,
+        money: moneyAbs,
+      );
+    }).toList();
+  }
+}
+
+/// Лёгкая VM для карточки
+class HabitVm {
+  final String id;
+  final String title;
+  final String subtitle;
+  final HabitKind kind;
+  final int todayCount;
+  final int money;
+  const HabitVm({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.kind,
+    required this.todayCount,
+    required this.money,
+  });
 }
 
 /// Хедер с прогресс-кругом и заголовками
 class _HeaderCard extends StatelessWidget {
   final String title;
-  final String subtitle; // верхняя строка под заголовком
-  final String moneyLabel; // "This Week You Earned/Lost:"
-  final int moneyValue; // $…
+  final String subtitle;
+  final String moneyLabel;
+  final int moneyValue;
   final double progress; // 0..1
   final bool positive;
 
@@ -206,9 +273,7 @@ class _HeaderCard extends StatelessWidget {
                 ),
                 SizedBox(height: 2.h),
                 Text(
-                  moneyValue == 0
-                      ? '-'
-                      : (positive ? '\$' : '\$') + moneyValue.toString(),
+                  moneyValue == 0 ? '-' : '\$${moneyValue.toString()}',
                   style: TextStyle(
                     color: positive
                         ? AppColors.successAccent
@@ -268,7 +333,6 @@ class _Segmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isGood = tab == HabitKind.good;
-
     return Container(
       height: 36.h,
       decoration: BoxDecoration(
@@ -287,7 +351,7 @@ class _Segmented extends StatelessWidget {
             'Negative',
             !isGood,
             () => onChanged(HabitKind.bad),
-            activeColor: Color(0xFFCF0B00),
+            activeColor: const Color(0xFFCF0B00),
           ),
         ],
       ),
@@ -372,9 +436,9 @@ class _AddButton extends StatelessWidget {
   }
 }
 
-/// Карточка привычки (общая для good/bad)
+/// Карточка привычки
 class _HabitCard extends StatelessWidget {
-  final HabitItem item;
+  final HabitVm item;
   final VoidCallback onTap;
 
   const _HabitCard({required this.item, required this.onTap});
@@ -382,17 +446,15 @@ class _HabitCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isGood = item.kind == HabitKind.good;
-    final moneyColor = isGood
-        ? const Color(0xFF19D15C)
-        : const Color(0xFFFF6B6B);
+    final moneyColor = isGood ? AppColors.successAccent : AppColors.errorAccent;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: EdgeInsets.only(bottom: 10.h),
-        padding: EdgeInsets.all(14.w),
+        margin: EdgeInsets.only(bottom: 8.h),
+        padding: EdgeInsets.all(8.w),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1D24),
+          color: AppColors.backgroundLevel2,
           borderRadius: BorderRadius.circular(12.r),
         ),
         child: Row(
@@ -409,44 +471,74 @@ class _HabitCard extends StatelessWidget {
                           item.title,
                           style: TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w800,
                             fontSize: 15.sp,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.30,
                           ),
                         ),
                       ),
                       if (item.todayCount > 0)
                         Row(
                           children: [
-                            Icon(
+                            Image.asset(
                               isGood
-                                  ? Icons.local_fire_department
-                                  : Icons.warning_amber_rounded,
-                              size: 18.sp,
-                              color: isGood
-                                  ? Colors.orangeAccent
-                                  : const Color(0xFFFF3B30),
+                                  ? 'assets/icons/fire.png'
+                                  : 'assets/icons/problem.png',
+                              width: 20.sp,
+                              height: 20.sp,
                             ),
-                            SizedBox(width: 4.w),
+                            SizedBox(width: 2.w),
                             Text(
                               '${item.todayCount}',
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.30,
+                              ),
                             ),
                           ],
                         ),
                     ],
                   ),
-                  SizedBox(height: 4.h),
+                  SizedBox(height: 5.h),
                   Text(
                     item.subtitle,
-                    style: TextStyle(color: Colors.white.withOpacity(.8)),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.sp,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.26,
+                    ),
                   ),
                   SizedBox(height: 6.h),
-                  Text(
-                    (isGood ? 'Money Saved ' : 'Money Lost ') +
-                        (isGood ? '\$${item.money}' : '\$${item.money}'),
-                    style: TextStyle(
-                      color: moneyColor,
-                      fontWeight: FontWeight.w700,
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: isGood ? 'Money Saved ' : 'Money Lost ',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.60),
+                            fontSize: 13.sp,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.26,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '\$${item.money}',
+                          style: TextStyle(
+                            color: moneyColor,
+                            fontSize: 15.sp,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.30,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

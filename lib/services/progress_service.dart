@@ -1,138 +1,308 @@
-// services/progress_service.dart
-
-import 'package:personal_rise_daily_growth_336t/models/achievement_models.dart';
-import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
-import 'package:personal_rise_daily_growth_336t/models/habit_models.dart';
+// lib/services/progress_service.dart
+import 'package:collection/collection.dart';
 import 'package:personal_rise_daily_growth_336t/models/level_models.dart';
-import 'package:personal_rise_daily_growth_336t/services/achievements_service.dart';
+import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
+import 'package:personal_rise_daily_growth_336t/models/achievement_models.dart';
 
 class ProgressSnapshot {
-  final LevelState level;
-  final int
-  goodStreakDays; // текущий стрик "выполнял good в каждый из последних N дней"
-  final int cleanStreakDays; // текущие чистые дни подряд (без bad в дни)
-  final int totalSaved; // целая часть $
-  final int totalWasted; // целая часть $
+  final int totalSaved; // сумма всех +amount
+  final int totalWasted; // сумма модулей всех -amount
+  final int cleanDays; // дней, где есть ≥1 good и 0 bad
+  final int goodStreak; // подряд дней до сегодня с ≥1 good (не учитываем bad)
   final List<AchievementProgress> achievements;
 
   const ProgressSnapshot({
-    required this.level,
-    required this.goodStreakDays,
-    required this.cleanStreakDays,
     required this.totalSaved,
     required this.totalWasted,
+    required this.cleanDays,
+    required this.goodStreak,
     required this.achievements,
   });
 }
 
+/// Нормы из ТЗ:
+/// - good лог = +1 очко
+/// - bad лог = -3 очка
+/// - Level 1..4: при достижении порога (50/100/150/200) -> level+1 и points сбрасываются в 0
+/// - Level 5: финальный, очки дальше копятся в maxScore (прогресс-бар показывает накопление сверху)
 class ProgressService {
-  /// применяем новый лог и возвращаем новое состояние уровня
-  static LevelState applyPoints(LevelState s, HabitLog log) {
-    if (s.isMax) {
-      // на 5 уровне копим score «сверх»
-      return LevelState(
-        level: 5,
-        points: 0,
-        maxScore: s.maxScore + (log.type == HabitType.good ? 1 : -3),
-      );
-    }
-    final delta = (log.type == HabitType.good) ? 1 : -3;
-    int pts = (s.points + delta).clamp(0, 999999);
+  static const int goodPoint = 1;
+  static const int badPoint = -3;
 
-    // апгрейд уровня?
-    final target = s.nextTarget!;
-    if (pts >= target) {
-      final nextLevel = s.level + 1;
-      if (nextLevel >= 5) {
-        // дошли до 5 — очки сбрасываются, дальше копим maxScore
-        return LevelState(level: 5, points: 0, maxScore: 0);
+  /// Пересчёт очков/уровня при одном логе.
+  static LevelState applyPoints(LevelState prev, HabitLog log) {
+    final delta = log.amount >= 0 ? goodPoint : badPoint;
+
+    if (!prev.isMax) {
+      int points = prev.points + delta;
+      if (points < 0) points = 0;
+
+      final target = prev.nextTarget!;
+      if (points >= target) {
+        // апгрейд уровня, сбрасываем очки
+        final nextLevel = (prev.level + 1).clamp(1, 5);
+        if (nextLevel == 5) {
+          // на входе была 4ка и достигли 5
+          return LevelState(level: 5, points: 0, maxScore: 0);
+        }
+        return LevelState(level: nextLevel, points: 0, maxScore: 0);
       }
-      // переход: очки сбрасываются
-      return LevelState(level: nextLevel, points: 0, maxScore: 0);
+      return LevelState(
+        level: prev.level,
+        points: points,
+        maxScore: prev.maxScore,
+      );
+    } else {
+      // финальный уровень — копим в maxScore
+      int score = prev.maxScore + delta;
+      if (score < 0) score = 0;
+      return LevelState(level: 5, points: 0, maxScore: score);
     }
-    return LevelState(level: s.level, points: pts, maxScore: 0);
   }
 
-  /// агрегирует всё для экранов
+  /// Строим снимок прогресса для ачивок/статистики.
   static ProgressSnapshot buildSnapshot({
     required LevelState level,
     required List<HabitLog> logs,
   }) {
-    // сгруппировать по дню
-    final byDay = <DateTime, List<HabitLog>>{};
-    for (final l in logs) {
-      final d = DateTime(l.date.year, l.date.month, l.date.day);
-      (byDay[d] ??= []).add(l);
-    }
+    // Суммы
+    final totalSaved = logs
+        .where((l) => l.amount > 0)
+        .fold<int>(0, (s, l) => s + l.amount);
+    final totalWasted = logs
+        .where((l) => l.amount < 0)
+        .fold<int>(0, (s, l) => s + (-l.amount));
 
-    // стрик good-дней и чистые дни подряд (считаем от сегодня назад)
+    // Чистые дни: день считается чистым, если в нём есть ≥1 good и НИ ОДНОГО bad
+    final byDay = groupBy(
+      logs,
+      (HabitLog l) => DateTime(l.date.year, l.date.month, l.date.day),
+    );
+    int cleanDays = byDay.values.where((list) {
+      final hasGood = list.any((l) => l.amount > 0);
+      final hasBad = list.any((l) => l.amount < 0);
+      return hasGood && !hasBad;
+    }).length;
+
+    // Глобальный good-streak: подряд до сегодня дни, где есть ≥1 good (bad не ломает streak — по ТЗ streak=«выполняет привычки»)
     int goodStreak = 0;
-    int cleanStreak = 0;
-    DateTime cursor = DateTime.now();
-    // нормализуем к дню (без времени)
-    cursor = DateTime(cursor.year, cursor.month, cursor.day);
-
-    while (true) {
-      final has = byDay[cursor];
-      if (has == null) break;
-
-      final hasGood = has.any((e) => e.type == HabitType.good);
-      final hasBad = has.any((e) => e.type == HabitType.bad);
-
-      if (hasGood) {
-        goodStreak++;
-      } else {
-        break;
-      }
-
-      if (hasBad) {
-        break;
-      } else {
-        cleanStreak++;
-      }
-
+    final goodDays = byDay.entries
+        .where((e) => e.value.any((l) => l.amount > 0))
+        .map((e) => e.key)
+        .toSet();
+    DateTime cursor = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    while (goodDays.contains(cursor)) {
+      goodStreak++;
       cursor = cursor.subtract(const Duration(days: 1));
     }
 
-    // деньги
-    double saved = 0;
-    double wasted = 0;
-    for (final l in logs) {
-      if (l.type == HabitType.good && l.money > 0) saved += l.money;
-      if (l.type == HabitType.bad && l.money < 0) wasted += -l.money;
-    }
-
-    // прогресс ачивок
-    final ach = achievementsCatalog.map((def) {
-      int current = 0;
-      switch (def.kind) {
+    // Ачивки — определяем список и текущие значения
+    final defs = _allAchievementDefs();
+    final List<AchievementProgress> progress = defs.map((d) {
+      int current;
+      switch (d.kind) {
         case AchievementKind.streakDays:
           current = goodStreak;
           break;
         case AchievementKind.savedMoney:
-          current = saved.floor();
+          current = totalSaved;
           break;
         case AchievementKind.wastedMoney:
-          current = wasted.floor();
+          current = totalWasted;
           break;
         case AchievementKind.cleanDays:
-          current = cleanStreak;
+          current = cleanDays;
           break;
       }
       return AchievementProgress(
-        def: def,
+        def: d,
         current: current,
-        achieved: current >= def.target,
+        achieved: current >= d.target,
       );
     }).toList();
 
     return ProgressSnapshot(
-      level: level,
-      goodStreakDays: goodStreak,
-      cleanStreakDays: cleanStreak,
-      totalSaved: saved.floor(),
-      totalWasted: wasted.floor(),
-      achievements: ach,
+      totalSaved: totalSaved,
+      totalWasted: totalWasted,
+      cleanDays: cleanDays,
+      goodStreak: goodStreak,
+      achievements: progress,
     );
   }
+
+  /// Полный список ачивок из ТЗ
+  static List<AchievementDef> _allAchievementDefs() => const [
+    // 1) По дням выполнения (стрик)
+    AchievementDef(
+      id: 'streak_3',
+      title: '3-Day Streak',
+      desc: 'Complete habits 3 days in a row',
+      kind: AchievementKind.streakDays,
+      target: 3,
+    ),
+    AchievementDef(
+      id: 'streak_7',
+      title: '7-Day Streak',
+      desc: 'Keep your streak for a week',
+      kind: AchievementKind.streakDays,
+      target: 7,
+    ),
+    AchievementDef(
+      id: 'streak_14',
+      title: '14-Day Streak',
+      desc: 'Two weeks of consistency',
+      kind: AchievementKind.streakDays,
+      target: 14,
+    ),
+    AchievementDef(
+      id: 'streak_30',
+      title: '30-Day Streak',
+      desc: 'A full month of momentum',
+      kind: AchievementKind.streakDays,
+      target: 30,
+    ),
+    AchievementDef(
+      id: 'streak_60',
+      title: '60-Day Streak',
+      desc: 'Two months straight',
+      kind: AchievementKind.streakDays,
+      target: 60,
+    ),
+    AchievementDef(
+      id: 'streak_100',
+      title: '100-Day Streak',
+      desc: '100 days without a break',
+      kind: AchievementKind.streakDays,
+      target: 100,
+    ),
+    AchievementDef(
+      id: 'streak_365',
+      title: '365-Day Streak',
+      desc: 'An entire year!',
+      kind: AchievementKind.streakDays,
+      target: 365,
+    ),
+
+    // 2) По сэкономленным деньгам
+    AchievementDef(
+      id: 'saved_10',
+      title: 'Saved \$10',
+      desc: 'First dollars saved',
+      kind: AchievementKind.savedMoney,
+      target: 10,
+    ),
+    AchievementDef(
+      id: 'saved_50',
+      title: 'Saved \$50',
+      desc: 'A meaningful amount',
+      kind: AchievementKind.savedMoney,
+      target: 50,
+    ),
+    AchievementDef(
+      id: 'saved_100',
+      title: 'Saved \$100',
+      desc: 'Triple digits saved',
+      kind: AchievementKind.savedMoney,
+      target: 100,
+    ),
+    AchievementDef(
+      id: 'saved_250',
+      title: 'Saved \$250',
+      desc: 'Quarter to a grand',
+      kind: AchievementKind.savedMoney,
+      target: 250,
+    ),
+    AchievementDef(
+      id: 'saved_500',
+      title: 'Saved \$500',
+      desc: 'Half a grand saved',
+      kind: AchievementKind.savedMoney,
+      target: 500,
+    ),
+    AchievementDef(
+      id: 'saved_1000',
+      title: 'Saved \$1000',
+      desc: 'Four digits saved',
+      kind: AchievementKind.savedMoney,
+      target: 1000,
+    ),
+    AchievementDef(
+      id: 'saved_5000',
+      title: 'Saved \$5000',
+      desc: 'Financial discipline unlocked',
+      kind: AchievementKind.savedMoney,
+      target: 5000,
+    ),
+
+    // 3) По потраченным деньгам (вредные привычки)
+    AchievementDef(
+      id: 'wasted_50',
+      title: 'Wasted \$50',
+      desc: 'Money lost to bad habits',
+      kind: AchievementKind.wastedMoney,
+      target: 50,
+    ),
+    AchievementDef(
+      id: 'wasted_200',
+      title: 'Wasted \$200',
+      desc: 'That stings',
+      kind: AchievementKind.wastedMoney,
+      target: 200,
+    ),
+
+    // 4) Чистые дни
+    AchievementDef(
+      id: 'clean_1',
+      title: '1 Clean Day',
+      desc: 'Only good habits today',
+      kind: AchievementKind.cleanDays,
+      target: 1,
+    ),
+    AchievementDef(
+      id: 'clean_3',
+      title: '3 Clean Days',
+      desc: 'Three days without bad habits',
+      kind: AchievementKind.cleanDays,
+      target: 3,
+    ),
+    AchievementDef(
+      id: 'clean_7',
+      title: '7 Clean Days',
+      desc: 'A clean week',
+      kind: AchievementKind.cleanDays,
+      target: 7,
+    ),
+    AchievementDef(
+      id: 'clean_14',
+      title: '14 Clean Days',
+      desc: 'Two clean weeks',
+      kind: AchievementKind.cleanDays,
+      target: 14,
+    ),
+    AchievementDef(
+      id: 'clean_30',
+      title: '30 Clean Days',
+      desc: 'A clean month',
+      kind: AchievementKind.cleanDays,
+      target: 30,
+    ),
+    AchievementDef(
+      id: 'clean_60',
+      title: '60 Clean Days',
+      desc: 'Two clean months',
+      kind: AchievementKind.cleanDays,
+      target: 60,
+    ),
+    AchievementDef(
+      id: 'clean_100',
+      title: '100 Clean Days',
+      desc: 'Perfection for 100 days',
+      kind: AchievementKind.cleanDays,
+      target: 100,
+    ),
+  ];
 }

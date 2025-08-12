@@ -10,8 +10,18 @@ import 'package:personal_rise_daily_growth_336t/pages/levels/widgets/show_help.d
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 import 'package:personal_rise_daily_growth_336t/widgets/progress_bar.dart';
 
-class LevelScreen extends StatelessWidget {
+class LevelScreen extends StatefulWidget {
   const LevelScreen({super.key});
+
+  @override
+  State<LevelScreen> createState() => _LevelScreenState();
+}
+
+class _LevelScreenState extends State<LevelScreen> {
+  final LayerLink _helpLink = LayerLink();
+  final GlobalKey _bgKey = GlobalKey();
+
+  Set<String> _lastAchievedIds = const <String>{};
 
   int _achievedCount(AchievementsState s) =>
       s.snapshot.achievements.where((a) => a.achieved).length;
@@ -73,12 +83,9 @@ class LevelScreen extends StatelessWidget {
     final levelCubit = context.watch<LevelCubit>();
     final achCubit = context.watch<AchievementsCubit>();
     final s = levelCubit.state;
-    final LayerLink helpLink = LayerLink();
-    final GlobalKey bgKey = GlobalKey();
     final nearest = _pickNearestThree(achCubit.state.snapshot.achievements);
     return MultiBlocListener(
       listeners: [
-        // LEVEL UP
         BlocListener<LevelCubit, LevelState>(
           listenWhen: (prev, curr) => prev.level != curr.level,
           listener: (context, state) {
@@ -89,30 +96,23 @@ class LevelScreen extends StatelessWidget {
             );
           },
         ),
-        // ACHIEVEMENT UNLOCKED
         BlocListener<AchievementsCubit, AchievementsState>(
-          listenWhen: (prev, curr) =>
-              _achievedCount(curr) > _achievedCount(prev),
           listener: (context, curr) {
-            // найдём «новую» ачивку по id
-            final before = _achievedIds(
-              context.read<AchievementsCubit>().state,
-            );
-            final nowIds = _achievedIds(curr);
-            final newId = (nowIds.difference(before).isNotEmpty)
-                ? nowIds.difference(before).first
-                : null;
-
-            final newly = curr.snapshot.achievements.firstWhere(
-              (a) => a.achieved && (newId == null || a.def.id == newId),
-              orElse: () =>
-                  curr.snapshot.achievements.firstWhere((a) => a.achieved),
-            );
-
-            _showOverlayToast(
-              context,
-              _achievementToast(newly.def.title, newly.def.desc),
-            );
+            final now = _achievedIds(curr);
+            // показываем тост, только если стало больше и есть новая id
+            if (now.length > _lastAchievedIds.length) {
+              final diff = now.difference(_lastAchievedIds);
+              final newly = curr.snapshot.achievements.firstWhere(
+                (a) => a.achieved && (diff.isEmpty || diff.contains(a.def.id)),
+                orElse: () =>
+                    curr.snapshot.achievements.firstWhere((a) => a.achieved),
+              );
+              _showOverlayToast(
+                context,
+                _achievementToast(newly.def.title, newly.def.desc),
+              );
+            }
+            _lastAchievedIds = now;
           },
         ),
       ],
@@ -124,7 +124,7 @@ class LevelScreen extends StatelessWidget {
             Stack(
               children: [
                 SizedBox(
-                  key: bgKey,
+                  key: _bgKey,
                   height: 560.h,
                   width: double.infinity,
                   child: Image.asset(
@@ -180,7 +180,7 @@ class LevelScreen extends StatelessWidget {
                   top: 52.h,
                   right: 12.w,
                   child: CompositedTransformTarget(
-                    link: helpLink,
+                    link: _helpLink,
                     child: IconButton(
                       icon: Container(
                         width: 44.w,
@@ -199,8 +199,8 @@ class LevelScreen extends StatelessWidget {
                       ),
                       onPressed: () => showLevelHelp(
                         context,
-                        helpLink,
-                        bgKey: bgKey,
+                        _helpLink,
+                        bgKey: _bgKey,
                         anchorSize: 44,
                       ),
                     ),
@@ -290,6 +290,7 @@ class LevelScreen extends StatelessWidget {
       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
     ),
   );
+
   Widget _achievementPreview(
     String title,
     String subtitle,

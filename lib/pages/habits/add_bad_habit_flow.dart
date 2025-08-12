@@ -2,13 +2,17 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class BadHabitDraft {
   String name = '';
   String description = '';
   String goal = '';
+
   bool get isDirty =>
-      name.isNotEmpty || description.isNotEmpty || goal.isNotEmpty;
+      name.trim().isNotEmpty ||
+      description.trim().isNotEmpty ||
+      goal.trim().isNotEmpty;
 }
 
 Future<void> showAddBadHabitFlow(
@@ -17,15 +21,19 @@ Future<void> showAddBadHabitFlow(
 }) async {
   await showGeneralDialog(
     context: context,
-    barrierLabel: 'add-bad-habit',
     barrierDismissible: false,
-    barrierColor: Colors.black.withOpacity(.45),
-    transitionDuration: const Duration(milliseconds: 200),
+    barrierLabel: 'add-bad-habit',
+    transitionDuration: const Duration(milliseconds: 180),
     pageBuilder: (_, __, ___) => _AddBadHabitFlow(onDone: onDone),
-    transitionBuilder: (_, anim, __, child) => BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 6 * anim.value, sigmaY: 6 * anim.value),
-      child: FadeTransition(opacity: anim, child: child),
-    ),
+    transitionBuilder: (_, anim, __, child) {
+      return BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 10 * anim.value,
+          sigmaY: 10 * anim.value,
+        ),
+        child: FadeTransition(opacity: anim, child: child),
+      );
+    },
   );
 }
 
@@ -39,16 +47,17 @@ class _AddBadHabitFlow extends StatefulWidget {
 
 class _AddBadHabitFlowState extends State<_AddBadHabitFlow> {
   final _draft = BadHabitDraft();
-  final _name = TextEditingController();
-  final _desc = TextEditingController();
-  final _goal = TextEditingController();
-  int _step = 0; // 0:intro 1:name 2:desc 3:goal 4:final
+  final _nameCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _goalCtrl = TextEditingController();
+
+  int _step = 0; // 0-intro, 1-name, 2-desc, 3-goal, 4-final
 
   @override
   void dispose() {
-    _name.dispose();
-    _desc.dispose();
-    _goal.dispose();
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    _goalCtrl.dispose();
     super.dispose();
   }
 
@@ -67,6 +76,7 @@ class _AddBadHabitFlowState extends State<_AddBadHabitFlow> {
           "Looks like you didn't save your work.\nExit anyway?",
           style: TextStyle(color: Colors.white70),
         ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -84,10 +94,11 @@ class _AddBadHabitFlowState extends State<_AddBadHabitFlow> {
 
   void _back() async {
     if (_step == 0) {
-      if (await _confirmExitIfDirty()) Navigator.of(context).pop();
-    } else {
-      setState(() => _step--);
+      final ok = await _confirmExitIfDirty();
+      if (ok && mounted) Navigator.of(context).pop();
+      return;
     }
+    setState(() => _step--);
   }
 
   void _next() {
@@ -114,7 +125,7 @@ class _AddBadHabitFlowState extends State<_AddBadHabitFlow> {
       case 1:
         return 'Add habit description';
       case 2:
-        return 'Next';
+        return 'Add habit goal';
       case 3:
         return 'Final';
       case 4:
@@ -126,64 +137,29 @@ class _AddBadHabitFlowState extends State<_AddBadHabitFlow> {
 
   @override
   Widget build(BuildContext context) {
+    final card = _CardShell(
+      title: "Let's Add a Bad Habit to Break",
+      onBack: _back,
+      ctaEnabled: _ctaEnabled,
+      ctaText: _ctaText,
+      onCta: () {
+        if (_step < 4) {
+          _next();
+        } else {
+          widget.onDone(_draft);
+          Navigator.of(context).pop();
+        }
+      },
+      child: _buildStep(),
+    );
+
     return WillPopScope(
       onWillPop: _confirmExitIfDirty,
       child: SafeArea(
         child: Center(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
-            child: Material(
-              color: const Color(0xFF20232B),
-              borderRadius: BorderRadius.circular(16.r),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 360.w),
-                child: Padding(
-                  padding: EdgeInsets.all(16.w),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: _back,
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              "Let's Add a Bad Habit to Break",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18.sp,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const _Divider(),
-                      _buildStep(),
-                      SizedBox(height: 14.h),
-                      _CtaButton(
-                        text: _ctaText,
-                        enabled: _ctaEnabled,
-                        onTap: () {
-                          if (_step < 4) {
-                            _next();
-                          } else {
-                            widget.onDone(_draft);
-                            Navigator.of(context).pop();
-                          }
-                        },
-                        // для визуального соответствия — синяя кнопка, макет не красит CTA
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            child: card,
           ),
         ),
       ),
@@ -191,82 +167,238 @@ class _AddBadHabitFlowState extends State<_AddBadHabitFlow> {
   }
 
   Widget _buildStep() {
+    EdgeInsets pad() =>
+        EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom);
+
     switch (_step) {
       case 0:
-        return const Text(
-          "You're about to track a harmful habit that negatively affects your finances or mindset.\n"
-          "Awareness is the first step toward change — name it, understand it, and take control.",
-          style: TextStyle(color: Colors.white70),
+        return SingleChildScrollView(
+          padding: pad(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 10.h),
+              Text(
+                "You're about to track a harmful habit that negatively affects your finances or mindset.\n"
+                "Awareness is the first step — name it, understand it, and take control.",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15.sp,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w400,
+                  height: 1.47,
+                  letterSpacing: 0.30,
+                ),
+              ),
+            ],
+          ),
         );
+
       case 1:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Enter a name for the habit you want to quit",
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 10),
-            _AppField(
-              controller: _name,
-              hint: 'Habit Name',
-              maxLines: 3,
-              onChanged: (v) => setState(() => _draft.name = v),
-            ),
-          ],
+        return SingleChildScrollView(
+          padding: pad(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 10.h),
+              Text(
+                "Which habit do you want to quit?",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.sp,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 0.26,
+                ),
+              ),
+              SizedBox(height: 6.h),
+              _AppField(
+                controller: _nameCtrl,
+                hint: 'Habit Name',
+                onChanged: (v) => setState(() => _draft.name = v),
+                maxLines: 6,
+              ),
+            ],
+          ),
         );
+
       case 2:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Describe why this habit is harmful",
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 10),
-            _AppField(
-              controller: _desc,
-              hint: 'Habit Description',
-              maxLines: 5,
-              onChanged: (v) => setState(() => _draft.description = v),
-            ),
-          ],
+        return SingleChildScrollView(
+          padding: pad(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 10.h),
+              Text(
+                "Why is this habit harmful?",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.sp,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 0.26,
+                ),
+              ),
+              SizedBox(height: 6.h),
+              _AppField(
+                controller: _descCtrl,
+                hint: 'Habit Description',
+                onChanged: (v) => setState(() => _draft.description = v),
+                maxLines: 6,
+              ),
+            ],
+          ),
         );
+
       case 3:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "What's your goal with this habit?",
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 10),
-            _AppField(
-              controller: _goal,
-              hint: 'Goal',
-              maxLines: 4,
-              onChanged: (v) => setState(() => _draft.goal = v),
-            ),
-          ],
+        return SingleChildScrollView(
+          padding: pad(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 10.h),
+              Text(
+                "What result are you aiming for?",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.sp,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 0.26,
+                ),
+              ),
+              SizedBox(height: 6.h),
+              _AppField(
+                controller: _goalCtrl,
+                hint: 'Goal',
+                onChanged: (v) => setState(() => _draft.goal = v),
+                maxLines: 6,
+              ),
+            ],
+          ),
         );
+
       case 4:
-        return const Text(
-          "You're about to track a habit that's holding you back.\n"
-          "Awareness is the first step — now it's time to take control and move forward.",
-          style: TextStyle(color: Colors.white70),
+        return SingleChildScrollView(
+          padding: pad(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 6.h),
+              Text(
+                "You're about to track a habit that's holding you back.\n"
+                "Stay consistent — awareness turns into progress.",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15.sp,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w400,
+                  height: 1.47,
+                  letterSpacing: 0.30,
+                ),
+              ),
+            ],
+          ),
         );
+
       default:
         return const SizedBox.shrink();
     }
   }
 }
 
-/// Текстовое поле (тёмное, как в good-flow)
+/// Card shell — общий с good-flow: тёмная карточка, divider, CTA-ссылка справа
+class _CardShell extends StatelessWidget {
+  const _CardShell({
+    required this.title,
+    required this.child,
+    required this.onBack,
+    required this.onCta,
+    required this.ctaEnabled,
+    required this.ctaText,
+  });
+
+  final String title;
+  final Widget child;
+  final VoidCallback onBack;
+  final VoidCallback onCta;
+  final bool ctaEnabled;
+  final String ctaText;
+
+  @override
+  Widget build(BuildContext context) {
+    final divider = Colors.white.withValues(alpha: .10);
+
+    return Material(
+      color: AppColors.backgroundLevel1,
+      borderRadius: BorderRadius.circular(12.r),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 343.w),
+        child: Padding(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  InkWell(
+                    onTap: onBack,
+                    borderRadius: BorderRadius.circular(20.r),
+                    child: Container(
+                      width: 36.w,
+                      height: 36.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLevel2,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Image.asset(
+                        'assets/icons/back.png',
+                        width: 28.w,
+                        height: 28.w,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 36.w, width: 8.w),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18.sp,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.36,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+              Divider(color: divider, height: 1.h),
+
+              child,
+
+              SizedBox(height: 4.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _LinkCTA(
+                  text: ctaText,
+                  enabled: ctaEnabled,
+                  onTap: onCta,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Поле ввода — тёмное, скруглённое, как в good-flow
 class _AppField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final int maxLines;
-  final ValueChanged<String> onChanged;
   const _AppField({
     required this.controller,
     required this.hint,
@@ -274,76 +406,103 @@ class _AppField extends StatelessWidget {
     this.maxLines = 1,
   });
 
+  final TextEditingController controller;
+  final String hint;
+  final int maxLines;
+  final ValueChanged<String> onChanged;
+
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
       onChanged: onChanged,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 15.sp,
+        fontFamily: 'SF Pro',
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.30,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38),
+        hintStyle: TextStyle(
+          color: Colors.white.withValues(alpha: 0.30),
+          fontSize: 15.sp,
+          fontFamily: 'SF Pro',
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.30,
+        ),
         filled: true,
-        fillColor: const Color(0xFF15171D),
+        fillColor: AppColors.backgroundLevel2,
         contentPadding: EdgeInsets.all(12.w),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
-          borderSide: BorderSide(color: Colors.white.withOpacity(.15)),
+          borderSide: BorderSide(color: AppColors.textlevel3),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
-          borderSide: BorderSide(color: Colors.white.withOpacity(.15)),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
-          borderSide: const BorderSide(color: Color(0xFF0062FF), width: 1.2),
+          borderSide: BorderSide(color: AppColors.textlevel3, width: 1.w),
         ),
       ),
     );
   }
 }
 
-class _CtaButton extends StatelessWidget {
-  final bool enabled;
-  final String text;
-  final VoidCallback onTap;
-  const _CtaButton({
-    required this.enabled,
+/// Ссылка-CTA (как в good-flow): текст + синяя круглая стрелка
+class _LinkCTA extends StatelessWidget {
+  const _LinkCTA({
     required this.text,
+    required this.enabled,
     required this.onTap,
   });
 
+  final String text;
+  final bool enabled;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44.h,
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: enabled ? onTap : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0062FF),
-          disabledBackgroundColor: Colors.white.withOpacity(.12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.r),
-          ),
-        ),
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(18.r),
+      child: Opacity(
+        opacity: enabled ? 1 : 0.3,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_ios, size: 16),
+            Text(
+              text,
+              style: TextStyle(
+                color: AppColors.primaryAccent,
+                fontSize: 15.sp,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.30,
+              ),
+            ),
+            SizedBox(width: 6.w),
+            Container(
+              width: 36.w,
+              height: 36.w,
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLevel2,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              alignment: Alignment.center,
+              child: Image.asset(
+                'assets/icons/arrow_right.png',
+                width: 20.w,
+                height: 20.w,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-}
-
-class _Divider extends StatelessWidget {
-  const _Divider();
-  @override
-  Widget build(BuildContext context) =>
-      Divider(color: Colors.white.withOpacity(.15), height: 20);
 }

@@ -1,38 +1,50 @@
-// models/habit.dart
-enum HabitKind { good, bad }
+import 'package:hive/hive.dart';
 
-class HabitItem {
+part 'habit.g.dart';
+
+@HiveType(typeId: 1)
+enum HabitKind {
+  @HiveField(0)
+  good,
+  @HiveField(1)
+  bad,
+}
+
+@HiveType(typeId: 2)
+class Habit extends HiveObject {
+  @HiveField(0)
   final String id;
-  final String title;
-  final String subtitle; // краткое описание
+  @HiveField(1)
+  final String name;
+  @HiveField(2)
+  final String description;
+  @HiveField(3)
   final HabitKind kind;
+  @HiveField(4)
+  final String? goal;
+  @HiveField(5)
+  final int? frequencyIndex;
 
-  /// Сколько раз выполнено сегодня (для good = done; для bad = триггеры)
-  final int todayCount;
-
-  /// Стрик по этой привычке (для good: подряд дней выполнения; для bad: подряд дней «провалов»)
-  final int streak;
-
-  /// Деньги: для good — накоплено (+), для bad — потеряно (−)
-  final int money; // в $, целое для UI
-
-  const HabitItem({
+  Habit({
     required this.id,
-    required this.title,
-    required this.subtitle,
+    required this.name,
+    required this.description,
     required this.kind,
-    this.todayCount = 0,
-    this.streak = 0,
-    this.money = 0,
+    this.goal,
+    this.frequencyIndex,
   });
 
-  HabitItem copyWith({int? todayCount, int? streak, int? money}) => HabitItem(
+  Habit copyWith({
+    String? name,
+    String? description,
+    String? goal,
+    int? frequencyIndex,
+  }) => Habit(
     id: id,
-    title: title,
-    subtitle: subtitle,
+    name: name ?? this.name,
+    description: description ?? this.description,
     kind: kind,
-    todayCount: todayCount ?? this.todayCount,
-    streak: streak ?? this.streak,
-    money: money ?? this.money,
+    goal: goal ?? this.goal,
+    frequencyIndex: frequencyIndex ?? this.frequencyIndex,
   );
 }

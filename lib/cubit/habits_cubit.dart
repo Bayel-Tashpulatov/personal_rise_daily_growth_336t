@@ -1,205 +1,220 @@
-// cubit/habits_cubit.dart
+import 'dart:async';
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
-import 'package:personal_rise_daily_growth_336t/models/habit_entry.dart';
+import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
+// Временно берём enum из UI. Лучше вынести в models/habit_frequency.dart
 import 'package:personal_rise_daily_growth_336t/pages/habits/add_good_habit_flow.dart';
 
 class HabitsState {
-  final List<HabitItem> good;
-  final List<HabitItem> bad;
+  final List<Habit> habits;
+  final List<HabitLog> logs;
 
-  /// Процент выполнения good на сегодня (0..100)
-  final int todayGoodPercent;
+  const HabitsState({required this.habits, required this.logs});
 
-  /// За текущую неделю: заработано/потеряно
-  final int weekEarned; // >=0
-  final int weekLost; // >=0
+  List<Habit> get good =>
+      habits.where((h) => h.kind == HabitKind.good).toList();
+  List<Habit> get bad => habits.where((h) => h.kind == HabitKind.bad).toList();
 
-  final List<HabitEntry> entries;
+  // ==== агрегаты для UI “Habits Main” ====
+  int get todayGoodPercent {
+    final today = DateTime.now();
+    final todayLogs = logs.where(
+      (l) =>
+          l.date.year == today.year &&
+          l.date.month == today.month &&
+          l.date.day == today.day,
+    );
+    // простая модель: % = min(100, countGood * 10).
+    final goodCount = todayLogs.where((l) => l.amount > 0).length;
+    return (goodCount * 10).clamp(0, 100);
+  }
 
-  const HabitsState({
-    required this.good,
-    required this.bad,
-    required this.todayGoodPercent,
-    required this.weekEarned,
-    required this.weekLost,
-    this.entries = const [],
-  });
+  int get weekEarned {
+    final now = DateTime.now();
+    final start = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 6));
+    return logs
+        .where((l) => l.amount > 0 && !_isBefore(l.date, start))
+        .fold(0, (s, l) => s + l.amount);
+  }
 
-  bool get hasGood => good.isNotEmpty;
-  bool get hasBad => bad.isNotEmpty;
+  int get weekLost {
+    final now = DateTime.now();
+    final start = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 6));
+    return logs
+        .where((l) => l.amount < 0 && !_isBefore(l.date, start))
+        .fold(0, (s, l) => s + (-l.amount));
+  }
 
-  // помощники получения по habitId
-  List<HabitEntry> entriesOf(String habitId) =>
-      entries.where((e) => e.habitId == habitId).toList()
-        ..sort((a, b) => b.date.compareTo(a.date)); // сначала свежие
+  // Вспомогалка
+  static bool _isBefore(DateTime a, DateTime b) {
+    final da = DateTime(a.year, a.month, a.day);
+    final db = DateTime(b.year, b.month, b.day);
+    return da.isBefore(db);
+  }
 
-  HabitsState copyWith({
-    List<HabitItem>? good,
-    List<HabitItem>? bad,
-    int? todayGoodPercent,
-    int? weekEarned,
-    int? weekLost,
-    List<HabitEntry>? entries,
-  }) => HabitsState(
-    good: good ?? this.good,
-    bad: bad ?? this.bad,
-    todayGoodPercent: todayGoodPercent ?? this.todayGoodPercent,
-    weekEarned: weekEarned ?? this.weekEarned,
-    weekLost: weekLost ?? this.weekLost,
-    entries: entries ?? this.entries,
-  );
+  HabitsState copyWith({List<Habit>? habits, List<HabitLog>? logs}) =>
+      HabitsState(habits: habits ?? this.habits, logs: logs ?? this.logs);
 }
 
 class HabitsCubit extends Cubit<HabitsState> {
-  HabitsCubit()
-    : super(
-        const HabitsState(
-          good: [],
-          bad: [],
-          todayGoodPercent: 0,
-          weekEarned: 0,
-          weekLost: 0,
-        ),
-      );
+  late final Box<Habit> _habitBox;
+  late final Box<HabitLog> _logBox;
+  StreamSubscription? _hSub, _lSub;
 
-  void addGood({
+  HabitsCubit() : super(const HabitsState(habits: [], logs: [])) {
+    _habitBox = Hive.box<Habit>('habits');
+    _logBox = Hive.box<HabitLog>('habit_logs');
+
+    // начальная загрузка
+    emit(
+      HabitsState(
+        habits: _habitBox.values.toList(),
+        logs: _logBox.values.toList()..sort((a, b) => b.date.compareTo(a.date)),
+      ),
+    );
+
+    // подписки
+    _hSub = _habitBox.watch().listen((_) {
+      emit(state.copyWith(habits: _habitBox.values.toList()));
+    });
+    _lSub = _logBox.watch().listen((_) {
+      final fresh = _logBox.values.toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+      emit(state.copyWith(logs: fresh));
+    });
+  }
+
+  @override
+  Future<void> close() async {
+    await _hSub?.cancel();
+    await _lSub?.cancel();
+    return super.close();
+  }
+
+  // ===== CRUD привычек =====
+
+  /// Добавить хорошую привычку
+  Future<void> addGood({
     required String name,
     required String description,
-    String goal = '',
-    HabitFrequency? frequency, // если хранишь
-  }) {
-    final newItem = HabitItem(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: name,
-      subtitle: description,
+    required String goal,
+    required HabitFrequency? frequency, // из UI
+  }) async {
+    final freqIndex = switch (frequency) {
+      HabitFrequency.daily => 0,
+      HabitFrequency.weekly => 1,
+      HabitFrequency.biweekly => 2,
+      HabitFrequency.monthly => 3,
+      null => null,
+    };
+
+    final h = Habit(
+      id: UniqueKey().toString(),
+      name: name,
+      description: description,
       kind: HabitKind.good,
-      streak: 0,
-      money: 0,
-      todayCount: 0,
+      goal: goal.isEmpty ? null : goal,
+      frequencyIndex: freqIndex,
     );
-
-    final newList = List<HabitItem>.from(state.good)..insert(0, newItem);
-    emit(state.copyWith(good: newList));
+    await _habitBox.put(h.id, h);
   }
 
-  void addBad({required String name, required String description}) {
-    final newItem = HabitItem(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: name,
-      subtitle: description,
+  /// Добавить плохую привычку
+  Future<void> addBad({
+    required String name,
+    required String description,
+    required String goal,
+  }) async {
+    final h = Habit(
+      id: UniqueKey().toString(),
+      name: name,
+      description: description,
       kind: HabitKind.bad,
-      streak: 0,
-      money: 0,
-      todayCount: 0,
+      goal: goal.isEmpty ? null : goal,
+      frequencyIndex: null, // не используется для bad
     );
-    final newList = List<HabitItem>.from(state.bad)..insert(0, newItem);
-    emit(state.copyWith(bad: newList));
+    await _habitBox.put(h.id, h);
   }
 
-  // good: отметить как выполненную
-  void markGoodDone({
+  Future<void> updateHabit(Habit habit) async => _habitBox.put(habit.id, habit);
+
+  Future<void> deleteHabit(String id) async {
+    await _habitBox.delete(id);
+    // удаляем связанные логи
+    final forDelete = _logBox.values.where((l) => l.habitId == id).toList();
+    for (final l in forDelete) {
+      await _logBox.delete(l.id);
+    }
+  }
+
+  // ===== ЛОГИ =====
+
+  Future<HabitLog> addLogRaw({
     required String habitId,
-    required int amount, // сколько сэкономил (+)
-    String note = '',
-  }) {
-    final now = DateTime.now();
-    final entry = HabitEntry(
-      id: '${now.microsecondsSinceEpoch}',
+    required DateTime date,
+    required int amount,
+    String? note,
+  }) async {
+    final log = HabitLog(
+      id: UniqueKey().toString(),
       habitId: habitId,
-      date: now,
-      type: EntryType.goodDone,
-      amount: amount, // положительное
+      date: DateTime(date.year, date.month, date.day),
+      amount: amount,
       note: note,
     );
-
-    // обновляем карточку: streak +1 (при необходимости), money += amount, todayCount +1
-    final idx = state.good.indexWhere((h) => h.id == habitId);
-    if (idx != -1) {
-      final h = state.good[idx];
-      final updated = h.copyWith(
-        streak: h.streak + 1,
-        money: h.money + amount,
-        todayCount: h.todayCount + 1,
-      );
-      final goodList = List<HabitItem>.from(state.good)..[idx] = updated;
-      final newEntries = List<HabitEntry>.from(state.entries)..add(entry);
-      emit(state.copyWith(good: goodList, entries: newEntries));
-    }
+    await _logBox.put(log.id, log);
+    return log;
   }
 
-  // bad: отметить “сорвался”
-  void markBadSlip({
+  Future<HabitLog> markGoodDone({
     required String habitId,
-    required int
-    amountLost, // сколько потерял (передаём положительное, сохраним как минус)
-    String note = '',
-  }) {
-    final now = DateTime.now();
-    final entry = HabitEntry(
-      id: '${now.microsecondsSinceEpoch}',
-      habitId: habitId,
-      date: now,
-      type: EntryType.badSlip,
-      amount: -amountLost, // храним как отрицательное
-      note: note,
-    );
+    required int amount,
+    String? note,
+  }) => addLogRaw(
+    habitId: habitId,
+    date: DateTime.now(),
+    amount: amount > 0 ? amount : 1,
+    note: note,
+  );
 
-    final idx = state.bad.indexWhere((h) => h.id == habitId);
-    if (idx != -1) {
-      final h = state.bad[idx];
-      final updated = h.copyWith(
-        streak: h.streak + 1, // стрик «провалов»
-        money: h.money + amountLost, // суммарно потеряно (показываем как $793)
-        todayCount: h.todayCount + 1,
-      );
-      final badList = List<HabitItem>.from(state.bad)..[idx] = updated;
-      final newEntries = List<HabitEntry>.from(state.entries)..add(entry);
-      emit(state.copyWith(bad: badList, entries: newEntries));
-    }
+  Future<HabitLog> markBadSlip({
+    required String habitId,
+    required int amountLost,
+    String? note,
+  }) => addLogRaw(
+    habitId: habitId,
+    date: DateTime.now(),
+    amount: -amountLost.abs(),
+    note: note,
+  );
+
+  Future<void> editLog(
+    String id, {
+    required int newAmount,
+    String? newNote,
+  }) async {
+    final old = _logBox.get(id);
+    if (old == null) return;
+    await _logBox.put(
+      id,
+      old.copyWith(amount: newAmount, note: newNote ?? old.note),
+    );
   }
 
-  // редактирование записи
-  void editEntry(String entryId, {required int amount, required String note}) {
-    final i = state.entries.indexWhere((e) => e.id == entryId);
-    if (i == -1) return;
-    final old = state.entries[i];
-    final newEntry = old.copyWith(
-      amount: old.type == EntryType.goodDone ? amount : -amount,
-      note: note,
-    );
+  Future<void> deleteLog(String id) async => _logBox.delete(id);
 
-    // скорректируем агрегаты (money) в карточке
-    if (old.type == EntryType.goodDone) {
-      final idx = state.good.indexWhere((h) => h.id == old.habitId);
-      if (idx != -1) {
-        final h = state.good[idx];
-        final corrected = h.copyWith(
-          money: h.money - old.amount + newEntry.amount,
-        );
-        final list = List<HabitItem>.from(state.good)..[idx] = corrected;
-        final entries = List<HabitEntry>.from(state.entries)..[i] = newEntry;
-        emit(state.copyWith(good: list, entries: entries));
-        return;
-      }
-    } else {
-      final idx = state.bad.indexWhere((h) => h.id == old.habitId);
-      if (idx != -1) {
-        // для bad в карточке money — сумма потерь как положительное
-        final prevLoss = -old.amount; // было положительное для UI
-        final newLoss = -newEntry.amount; // тоже положительное
-        final h = state.bad[idx];
-        final corrected = h.copyWith(money: h.money - prevLoss + newLoss);
-        final list = List<HabitItem>.from(state.bad)..[idx] = corrected;
-        final entries = List<HabitEntry>.from(state.entries)..[i] = newEntry;
-        emit(state.copyWith(bad: list, entries: entries));
-        return;
-      }
-    }
-
-    // запасной путь
-    final entries = List<HabitEntry>.from(state.entries)..[i] = newEntry;
-    emit(state.copyWith(entries: entries));
-  }
-
+  // Для деталей привычки
+  List<HabitLog> entriesOf(String habitId) =>
+      state.logs.where((l) => l.habitId == habitId).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
 }

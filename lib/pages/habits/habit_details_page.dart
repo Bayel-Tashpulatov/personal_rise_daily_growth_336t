@@ -1,79 +1,140 @@
-// pages/habit_details_page.dart
+// lib/pages/habit_details_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
+
 import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
-import 'package:personal_rise_daily_growth_336t/models/habit_entry.dart';
+import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
+import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/log_editor_sheet.dart';
+import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class HabitDetailsPage extends StatelessWidget {
-  final HabitItem habit;
-  final String? frequencyLabel; // 'Everyday' | 'Every Week' ... (для good)
-  const HabitDetailsPage({super.key, required this.habit, this.frequencyLabel});
+  final Habit habit;
+  const HabitDetailsPage({super.key, required this.habit});
+
+  // Если у Habit есть frequencyIndex (0..3), маппим в лейбл
+  String? _freqLabel(int? idx) {
+    switch (idx) {
+      case 0:
+        return 'Everyday';
+      case 1:
+        return 'Every Week';
+      case 2:
+        return 'Every Two Weeks';
+      case 3:
+        return 'Every Month';
+      default:
+        return null;
+    }
+  }
+
+  // Если у Habit есть goal (String?)
+  String? _goalText(String? goal) {
+    final String? g = goal?.trim();
+    if (g == null || g.trim().isEmpty) return null;
+    return g.trim();
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.watch<HabitsCubit>();
-    final entries = c.state.entriesOf(habit.id);
+    final logs = c.entriesOf(habit.id); // отсортированы по дате (новые сверху)
 
     final isGood = habit.kind == HabitKind.good;
-    final moneyColor = isGood
-        ? const Color(0xFF19D15C)
-        : const Color(0xFFFF6B6B);
+    final money = _sumMoney(logs, isGood: isGood);
+    final streak = _streak(logs, good: isGood);
+    final moneyColor = isGood ? AppColors.successAccent : AppColors.errorAccent;
+
+    final today = DateTime.now();
+    final hasToday = logs.any(
+      (l) =>
+          l.date.year == today.year &&
+          l.date.month == today.month &&
+          l.date.day == today.day &&
+          (isGood ? l.amount > 0 : l.amount < 0),
+    );
+
+    final freq = _freqLabel(habit.frequencyIndex);
+    final goal = _goalText(habit.goal);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1115),
+      backgroundColor: AppColors.backgroundLevel1,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1115),
+        backgroundColor: AppColors.backgroundLevel1,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: Image.asset('assets/icons/back.png', width: 44.w, height: 44.w),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'Habit Details',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: AppColors.textlevel1,
+            fontSize: 18.sp,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.36,
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: Colors.white),
+            icon: Image.asset(
+              'assets/icons/edit.png',
+              width: 44.w,
+              height: 44.w,
+            ),
             onPressed: () {
-              // TODO: переход в редактирование привычки
+              // экран редактирования при необходимости
             },
           ),
         ],
       ),
+
       body: ListView(
-        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
+        padding: EdgeInsets.fromLTRB(12.w, 24.h, 12.w, 24.h),
         children: [
-          // Заголовок + частота + описание
+          // Header card: name + frequency + description
           _card(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // длинные названия — обрежем по многим строкам
                 Text(
-                  habit.title,
-                  maxLines: 3,
+                  habit.name,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20.sp,
-                    fontWeight: FontWeight.w800,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.40,
                   ),
                 ),
-                if (isGood && (frequencyLabel?.isNotEmpty ?? false)) ...[
-                  SizedBox(height: 4.h),
+                if (freq != null) ...[
+                  SizedBox(height: 8.h),
                   RichText(
                     text: TextSpan(
                       text: 'Frequency: ',
-                      style: const TextStyle(color: Colors.white54),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.60),
+                        fontSize: 15.sp,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.30,
+                      ),
                       children: [
                         TextSpan(
-                          text: frequencyLabel!,
-                          style: const TextStyle(color: Colors.white),
+                          text: freq,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.sp,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.30,
+                          ),
                         ),
                       ],
                     ),
@@ -81,31 +142,63 @@ class HabitDetailsPage extends StatelessWidget {
                 ],
                 SizedBox(height: 8.h),
                 Text(
-                  habit.subtitle,
-                  style: TextStyle(color: Colors.white.withOpacity(.9)),
+                  habit.description,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15.sp,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w400,
+                    height: 1.33,
+                    letterSpacing: 0.30,
+                  ),
                 ),
               ],
             ),
           ),
-          SizedBox(height: 10.h),
+          SizedBox(height: 12.h),
 
-          // Goal
-          _card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _sectionTitle('🧠 Goal'),
-                Text(
-                  // можно хранить goal в самой модели HabitItem, сейчас берём из subtitle demo
-                  'Consistently record expenses every day for at least 21 days to build a lasting habit.',
-                  style: TextStyle(color: Colors.white.withOpacity(.9)),
-                ),
-              ],
+          // Goal card
+          if (goal != null)
+            _card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Image.asset(
+                        'assets/icons/goal.png',
+                        width: 24.w,
+                        height: 24.w,
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        'Goal',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20.sp,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.40,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    goal,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.sp,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.30,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 10.h),
+          if (goal != null) SizedBox(height: 4.h),
 
-          // Streak + Money
+          // Stats row
           Row(
             children: [
               Expanded(
@@ -113,28 +206,35 @@ class HabitDetailsPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Current Streak',
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15.sp,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.30,
+                        ),
                       ),
-                      SizedBox(height: 6.h),
+                      SizedBox(height: 4.h),
                       Row(
                         children: [
-                          Icon(
+                          Image.asset(
                             isGood
-                                ? Icons.local_fire_department
-                                : Icons.warning_amber_rounded,
-                            color: isGood
-                                ? Colors.orangeAccent
-                                : const Color(0xFFFF3B30),
+                                ? 'assets/icons/fire.png'
+                                : 'assets/icons/problem.png',
+                            width: 28.w,
+                            height: 28.w,
                           ),
-                          SizedBox(width: 6.w),
+                          SizedBox(width: 1.w),
                           Text(
-                            '${habit.streak}',
-                            style: const TextStyle(
+                            '$streak',
+                            style: TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
+                              fontSize: 24.sp,
+                              fontFamily: 'SF Pro',
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.48,
                             ),
                           ),
                         ],
@@ -143,7 +243,7 @@ class HabitDetailsPage extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: 10.w),
+              SizedBox(width: 4.w),
               Expanded(
                 child: _card(
                   child: Column(
@@ -151,15 +251,23 @@ class HabitDetailsPage extends StatelessWidget {
                     children: [
                       Text(
                         isGood ? 'Money Saved' : 'Money Lost',
-                        style: const TextStyle(color: Colors.white70),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15.sp,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.30,
+                        ),
                       ),
-                      SizedBox(height: 6.h),
+                      SizedBox(height: 4.h),
                       Text(
-                        (isGood ? '\$' : '\$') + habit.money.toString(),
+                        '\$${NumberFormat('#,###').format(money)}',
                         style: TextStyle(
                           color: moneyColor,
+                          fontSize: 24.sp,
+                          fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w900,
-                          fontSize: 18,
+                          letterSpacing: 0.48,
                         ),
                       ),
                     ],
@@ -170,22 +278,34 @@ class HabitDetailsPage extends StatelessWidget {
           ),
           SizedBox(height: 12.h),
 
-          // Кнопка Mark as Done / I Slipped
+          Text(
+            hasToday
+                ? (isGood ? 'Already marked today' : 'Already recorded today')
+                : (isGood ? 'Not yet marked today' : 'No slips today'),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15.sp,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0.30,
+            ),
+          ),
+          SizedBox(height: 6.h),
           _markButton(
             isGood: isGood,
+            enabled: !hasToday,
             onTap: () async {
-              // простая форма ввода суммы + заметки
-              final res = await _showAmountNoteSheet(context, isGood: isGood);
+              final res = await showLogEditorSheet(context, isGood: isGood);
               if (res == null) return;
 
               if (isGood) {
-                context.read<HabitsCubit>().markGoodDone(
+                await context.read<HabitsCubit>().markGoodDone(
                   habitId: habit.id,
                   amount: res.amount,
                   note: res.note,
                 );
               } else {
-                context.read<HabitsCubit>().markBadSlip(
+                await context.read<HabitsCubit>().markBadSlip(
                   habitId: habit.id,
                   amountLost: res.amount,
                   note: res.note,
@@ -193,142 +313,173 @@ class HabitDetailsPage extends StatelessWidget {
               }
             },
           ),
+
           SizedBox(height: 12.h),
 
-          // История
-          if (entries.isNotEmpty)
-            ...entries.map(
-              (e) => _entryTile(
-                entry: e,
-                isGood: isGood,
-                onEdit: () async {
-                  final edited = await _showAmountNoteSheet(
-                    context,
-                    isGood: e.type == EntryType.goodDone,
-                    initAmount: e.type == EntryType.goodDone
-                        ? e.amount
-                        : -e.amount,
-                    initNote: e.note,
-                    title: 'Edit Entry',
-                  );
-                  if (edited != null) {
-                    context.read<HabitsCubit>().editEntry(
-                      e.id,
-                      amount: edited.amount,
-                      note: edited.note,
-                    );
-                  }
-                },
-              ),
-            ),
+          // History
+          ...logs.map((l) => _historyTile(context, l, isGood: isGood)),
         ],
       ),
     );
   }
 
-  // === Виджеты ===
+  // ===== helpers =====
+
+  int _sumMoney(List<HabitLog> list, {required bool isGood}) {
+    if (isGood) {
+      // только положительные суммы
+      return list.where((l) => l.amount > 0).fold(0, (s, l) => s + l.amount);
+    } else {
+      // только отрицательные, как потери
+      return list.where((l) => l.amount < 0).fold(0, (s, l) => s + (-l.amount));
+    }
+  }
+
+  int _streak(List<HabitLog> list, {required bool good}) {
+    if (list.isEmpty) return 0;
+    // множество дат, где было нужное событие
+    final set = list
+        .where((l) => good ? l.amount > 0 : l.amount < 0)
+        .map((l) => DateUtils.dateOnly(l.date))
+        .toSet();
+    var day = DateUtils.dateOnly(DateTime.now());
+    var s = 0;
+    while (set.contains(day)) {
+      s++;
+      day = day.subtract(const Duration(days: 1));
+    }
+    return s;
+  }
+
+  // ===== widgets =====
 
   Widget _card({required Widget child}) {
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
+        color: AppColors.backgroundLevel2,
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: child,
     );
   }
 
-  Widget _sectionTitle(String t) => Padding(
-    padding: EdgeInsets.only(bottom: 6.h),
-    child: Text(
-      t,
-      style: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w800,
-        fontSize: 16,
-      ),
-    ),
-  );
+  // Widget _sectionTitle(String t) => Padding(
+  //   padding: EdgeInsets.only(bottom: 6.h),
+  //   child: Text(
+  //     t,
+  //     style: const TextStyle(
+  //       color: Colors.white,
+  //       fontWeight: FontWeight.w800,
+  //       fontSize: 16,
+  //     ),
+  //   ),
+  // );
 
-  Widget _markButton({required bool isGood, required VoidCallback onTap}) {
+  Widget _markButton({
+    required bool isGood,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
     final color = isGood ? const Color(0xFF19D15C) : const Color(0xFFFF3B30);
     final text = isGood ? 'Mark as Done' : 'I Slipped';
     final icon = isGood ? Icons.add_circle : Icons.remove_circle;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 44.h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.r),
-          border: Border.all(color: color, width: 1.2),
-        ),
-        padding: EdgeInsets.symmetric(horizontal: 14.w),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                text,
-                style: TextStyle(color: color, fontWeight: FontWeight.w800),
+    return Opacity(
+      opacity: enabled ? 1 : .5,
+      child: GestureDetector(
+        onTap: enabled ? onTap : null,
+        child: Container(
+          height: 44.h,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(color: color, width: 1.2),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 14.w),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                ),
               ),
-            ),
-            Icon(icon, color: color),
-          ],
+              Icon(icon, color: color),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _entryTile({
-    required HabitEntry entry,
+  Widget _historyTile(
+    BuildContext context,
+    HabitLog l, {
     required bool isGood,
-    required VoidCallback onEdit,
   }) {
     final df = DateFormat('d MMM, yyyy');
-    final amount = entry.type == EntryType.goodDone
-        ? entry.amount
-        : -entry.amount;
-    final isPositive = entry.type == EntryType.goodDone;
+    final isPositive = l.amount > 0;
+    final shown = isPositive ? l.amount : -l.amount;
     final color = isPositive
         ? const Color(0xFF19D15C)
-        : const Color(0xFFFF6B6B);
+        : const Color(0xFFFF3B30);
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 8.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: InkWell(
-        onTap: onEdit, // тап по карточке — редактирование
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () async {
+        final edited = await showLogEditorSheet(
+          context,
+          isGood: isPositive,
+          isEdit: true,
+          initialNote: l.note,
+          initialAmount: shown,
+        );
+        if (edited == null) return;
+
+        if (edited.deleted) {
+          await context.read<HabitsCubit>().deleteLog(l.id);
+        } else {
+          final newAmount = isPositive ? edited.amount : -edited.amount;
+          await context.read<HabitsCubit>().editLog(
+            l.id,
+            newAmount: newAmount,
+            newNote: edited.note,
+          );
+        }
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 8.h),
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1D24),
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    df.format(entry.date),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    df.format(l.date),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                Text(
-                  (isPositive ? '+\$' : '\$') + amount.toString(),
-                  style: TextStyle(color: color, fontWeight: FontWeight.w800),
-                ),
-              ],
+                  SizedBox(height: 4.h),
+                  Text(
+                    (l.note?.trim().isNotEmpty ?? false)
+                        ? l.note!.trim()
+                        : (isPositive ? 'Logged action' : 'Slip recorded'),
+                    style: TextStyle(color: Colors.white.withOpacity(.85)),
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 6.h),
             Text(
-              entry.note.isEmpty
-                  ? (isPositive ? 'Logged action' : 'Slip recorded')
-                  : entry.note,
-              style: TextStyle(color: Colors.white.withOpacity(.9)),
+              (isPositive ? '+\$' : '-\$') +
+                  NumberFormat('#,###').format(shown),
+              style: TextStyle(color: color, fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -337,24 +488,11 @@ class HabitDetailsPage extends StatelessWidget {
   }
 }
 
-// ====== простая форма суммы+заметки ======
+// ===== bottom-sheet только для суммы =====
 
-class _AmountNote {
-  final int amount;
-  final String note;
-  const _AmountNote(this.amount, this.note);
-}
-
-Future<_AmountNote?> _showAmountNoteSheet(
-  BuildContext context, {
-  required bool isGood,
-  int? initAmount,
-  String? initNote,
-  String title = 'Add Entry',
-}) async {
-  final amountCtrl = TextEditingController(text: initAmount?.toString() ?? '');
-  final noteCtrl = TextEditingController(text: initNote ?? '');
-  return showModalBottomSheet<_AmountNote>(
+Future<int?> _askAmount(BuildContext context, {required bool isGood}) async {
+  final ctrl = TextEditingController();
+  return showModalBottomSheet<int>(
     context: context,
     backgroundColor: const Color(0xFF20232B),
     shape: const RoundedRectangleBorder(
@@ -374,35 +512,18 @@ Future<_AmountNote?> _showAmountNoteSheet(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              title,
+              isGood ? 'Money Saved (\$)' : 'Money Lost (\$)',
               style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: isGood ? 'Money Saved (\$)' : 'Money Lost (\$)',
-                labelStyle: const TextStyle(color: Colors.white70),
-                filled: true,
-                fillColor: const Color(0xFF15171D),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                color: Colors.white70,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 10),
             TextField(
-              controller: noteCtrl,
-              maxLines: 3,
+              controller: ctrl,
+              keyboardType: TextInputType.number,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                labelText: 'Note',
-                labelStyle: const TextStyle(color: Colors.white70),
                 filled: true,
                 fillColor: const Color(0xFF15171D),
                 border: OutlineInputBorder(
@@ -422,11 +543,8 @@ Future<_AmountNote?> _showAmountNoteSheet(
                   ),
                 ),
                 onPressed: () {
-                  final amt = int.tryParse(amountCtrl.text.trim()) ?? 0;
-                  Navigator.pop(
-                    ctx,
-                    _AmountNote(amt.abs(), noteCtrl.text.trim()),
-                  );
+                  final v = int.tryParse(ctrl.text.trim()) ?? 0;
+                  Navigator.pop(ctx, v.abs());
                 },
                 child: const Text(
                   'Save',
