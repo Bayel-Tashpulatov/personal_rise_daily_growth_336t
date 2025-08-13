@@ -157,7 +157,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     positive: true,
                   ),
                 ),
-                SizedBox(width: 8.w),
+                SizedBox(width: 4.w),
                 Expanded(
                   child: TotalCard(
                     title: 'Money Lost',
@@ -174,7 +174,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
               positive: true,
               items: topGood,
             ),
-            SizedBox(height: 16.h),
+            SizedBox(height: 24.h),
             TopSection(
               title: 'Top Negative Habits',
               positive: false,
@@ -182,15 +182,25 @@ class _StatisticsPageState extends State<StatisticsPage> {
             ),
 
             if (hc.state.habits.isEmpty) ...[
-              SizedBox(height: 20.h),
+              SizedBox(height: 70.h),
               Center(
                 child: Text(
                   'Add habbits to see more statistics!',
-                  style: TextStyle(color: AppColors.textlevel1.withOpacity(.7)),
+                  style: TextStyle(
+                    color: AppColors.textlevel1,
+                    fontSize: 12.sp,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.24,
+                  ),
                 ),
               ),
-              SizedBox(height: 12.h),
-              Image.asset('assets/images/empty_stats.png', height: 160),
+              SizedBox(height: 8.h),
+              Image.asset(
+                'assets/images/empty_stats.png',
+                width: 160.w,
+                height: 160.w,
+              ),
             ],
           ],
         ),

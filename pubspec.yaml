@@ -93,7 +93,7 @@ flutter:
   fonts:
     - family: SF Pro
       fonts:
-        - asset: assets/fonts/SF-Pro.ttf
+        - asset: assets/fonts/SF-Pro-Text-Heavy.otf
   #       - asset: fonts/Schyler-Italic.ttf
   #         style: italic
   #   - family: Trajan Pro

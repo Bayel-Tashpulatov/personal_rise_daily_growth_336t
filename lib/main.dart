@@ -20,6 +20,8 @@ void main() async {
 
   await Hive.openBox<Habit>('habits');
   await Hive.openBox<HabitLog>('habit_logs');
+  await Hive.openBox('prefs');
+
   runApp(const PersonalRiseDailyGrowth());
 }
 
@@ -37,7 +39,7 @@ class PersonalRiseDailyGrowth extends StatelessWidget {
       builder: (context, child) {
         return MultiBlocProvider(
           providers: [
-            BlocProvider(create: (_) => LevelCubit()),
+            BlocProvider(create: (_) => LevelCubit(Hive.box('prefs'))),
             BlocProvider(create: (ctx) => HabitsCubit(ctx.read<LevelCubit>())),
             BlocProvider(
               create: (ctx) => AchievementsCubit(

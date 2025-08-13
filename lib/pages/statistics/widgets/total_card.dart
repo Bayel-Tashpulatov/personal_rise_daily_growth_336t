@@ -1,4 +1,3 @@
-// lib/features/statistics/presentation/widgets/total_card.dart
 import 'package:flutter/widgets.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/pages/statistics/statistics_page.dart';
@@ -17,8 +16,8 @@ class TotalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = positive ? const Color(0xFF19D15C) : const Color(0xFFFF3B30);
-    final sign = positive ? '+' : '-';
+    final color = positive ? AppColors.successAccent : AppColors.errorAccent;
+
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
@@ -26,19 +25,27 @@ class TotalCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             title,
-            style: TextStyle(color: AppColors.textlevel1.withOpacity(.8)),
+            style: TextStyle(
+              color: AppColors.textlevel1,
+              fontSize: 13.sp,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.26,
+            ),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 4.h),
           Text(
-            '$sign\$${formatMoneyInt(value)}',
+            '\$${formatMoneyInt(value)}',
             style: TextStyle(
               color: color,
-              fontSize: 18.sp,
+              fontSize: 24.sp,
+              fontFamily: 'SF Pro',
               fontWeight: FontWeight.w900,
+              letterSpacing: 0.48,
             ),
           ),
         ],

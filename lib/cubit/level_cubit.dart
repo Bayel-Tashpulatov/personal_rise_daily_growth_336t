@@ -1,17 +1,47 @@
 // cubit/level_cubit.dart
 import 'package:bloc/bloc.dart';
+import 'package:hive/hive.dart';
 import 'package:personal_rise_daily_growth_336t/models/level_models.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
 import 'package:personal_rise_daily_growth_336t/services/progress_service.dart';
 
 class LevelCubit extends Cubit<LevelState> {
-  LevelCubit() : super(const LevelState(level: 1, points: 0, maxScore: 0));
+  final Box _prefs;
+
+  LevelCubit(this._prefs) : super(_loadFromPrefs(_prefs));
+
+  static LevelState _loadFromPrefs(Box p) {
+    final level = (p.get('level') as int?) ?? 1;
+    final points = (p.get('points') as int?) ?? 0;
+    final maxScore = (p.get('maxScore') as int?) ?? 0;
+
+    // на случай изменения порогов — прогресс всегда валиден
+    final s = LevelState(
+      level: level.clamp(1, 5),
+      points: points,
+      maxScore: maxScore,
+    );
+    return s;
+  }
+
+  void _save(LevelState s) {
+    _prefs.put('level', s.level);
+    _prefs.put('points', s.points);
+    _prefs.put('maxScore', s.maxScore);
+  }
+
+  /// Переопределяем onChange, чтобы сохранять КАЖДОЕ новое состояние
+  @override
+  void onChange(Change<LevelState> change) {
+    super.onChange(change);
+    _save(change.nextState);
+  }
 
   /// вернёт true если был апгрейд уровня
   bool applyLog(HabitLog log) {
     final before = state;
     final after = ProgressService.applyPoints(state, log);
-    emit(after);
+    emit(after); // сохранится через onChange
     return after.level > before.level;
   }
 
