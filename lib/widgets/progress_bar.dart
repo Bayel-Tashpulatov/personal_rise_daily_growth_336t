@@ -10,10 +10,11 @@ class AppProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final v = value.isNaN || value.isInfinite ? 0.0 : value.clamp(0.0, 1.0);
     return ClipRRect(
       borderRadius: BorderRadius.circular(12.r),
       child: LinearProgressIndicator(
-        value: value.clamp(0, 1),
+        value: v.clamp(0, 1),
         minHeight: minHeight?.h,
         backgroundColor: Color(0xFF002FD8).withValues(alpha: 0.3),
         valueColor: AlwaysStoppedAnimation(AppColors.primaryAccent),

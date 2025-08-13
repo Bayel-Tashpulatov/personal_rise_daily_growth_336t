@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:personal_rise_daily_growth_336t/cubit/level_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
-// Временно берём enum из UI. Лучше вынести в models/habit_frequency.dart
-import 'package:personal_rise_daily_growth_336t/pages/habits/add_good_habit_flow.dart';
+import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/habit_editor_widgets.dart';
 
 class HabitsState {
   final List<Habit> habits;
@@ -67,11 +67,13 @@ class HabitsState {
 }
 
 class HabitsCubit extends Cubit<HabitsState> {
+  final LevelCubit levelCubit;
   late final Box<Habit> _habitBox;
   late final Box<HabitLog> _logBox;
   StreamSubscription? _hSub, _lSub;
 
-  HabitsCubit() : super(const HabitsState(habits: [], logs: [])) {
+  HabitsCubit(this.levelCubit)
+    : super(const HabitsState(habits: [], logs: [])) {
     _habitBox = Hive.box<Habit>('habits');
     _logBox = Hive.box<HabitLog>('habit_logs');
 
@@ -173,6 +175,10 @@ class HabitsCubit extends Cubit<HabitsState> {
       note: note,
     );
     await _logBox.put(log.id, log);
+
+    // 🔑 вот это нужно для Level Up тоста
+    levelCubit.applyLog(log);
+
     return log;
   }
 

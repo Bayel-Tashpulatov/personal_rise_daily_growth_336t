@@ -8,10 +8,11 @@ import 'package:personal_rise_daily_growth_336t/cubit/achievements_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
 import 'package:personal_rise_daily_growth_336t/pages/pr_splash_screen.dart';
+import 'package:personal_rise_daily_growth_336t/widgets/toasts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-   await Hive.initFlutter();
+  await Hive.initFlutter();
 
   Hive.registerAdapter(HabitKindAdapter());
   Hive.registerAdapter(HabitAdapter());
@@ -21,6 +22,8 @@ void main() async {
   await Hive.openBox<HabitLog>('habit_logs');
   runApp(const PersonalRiseDailyGrowth());
 }
+
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 class PersonalRiseDailyGrowth extends StatelessWidget {
   const PersonalRiseDailyGrowth({super.key});
@@ -35,7 +38,7 @@ class PersonalRiseDailyGrowth extends StatelessWidget {
         return MultiBlocProvider(
           providers: [
             BlocProvider(create: (_) => LevelCubit()),
-            BlocProvider(create: (_) => HabitsCubit()),
+            BlocProvider(create: (ctx) => HabitsCubit(ctx.read<LevelCubit>())),
             BlocProvider(
               create: (ctx) => AchievementsCubit(
                 ctx.read<LevelCubit>(),
@@ -44,9 +47,14 @@ class PersonalRiseDailyGrowth extends StatelessWidget {
             ),
           ],
           child: MaterialApp(
+            navigatorKey: appNavigatorKey, // ← важное место
             debugShowCheckedModeBanner: false,
             theme: ThemeData.dark(),
             home: const PrSplashScreen(),
+            builder: (context, child) {
+              // ВСТАВЛЯЕМ ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ ЗДЕСЬ
+              return GlobalToasts(child: child!);
+            },
           ),
         );
       },

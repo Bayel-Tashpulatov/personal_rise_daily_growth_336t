@@ -1,6 +1,9 @@
 // lib/widgets/log_editor_sheet.dart
 import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class LogEditorResult {
   final String note;
@@ -26,27 +29,33 @@ Future<LogEditorResult?> showLogEditorSheet(
 
   Future<bool> confirmExit() async {
     if (!isDirty()) return true;
-    final ok = await showDialog<bool>(
+    final ok = await showCupertinoDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF23262F),
-        title: const Text(
-          'Hold On!',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-        ),
-        content: const Text(
-          "Looks like you didn't save your work.\nExit anyway?",
-          style: TextStyle(color: Colors.white70),
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Hold On!'),
+        content: const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text("Looks like you didn't save your work.\nExit anyway?"),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Stay'),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Stay',
+              style: TextStyle(color: CupertinoColors.activeBlue),
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Exit'),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Exit',
+              style: TextStyle(
+                color: CupertinoColors.activeBlue,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -64,15 +73,14 @@ Future<LogEditorResult?> showLogEditorSheet(
       ? 'How was your day with this habit?'
       : 'How did today go with this bad habit?';
   final hintAmount = isGood ? 'Money Saved' : 'Money Lost';
-  final accent = isGood ? const Color(0xFF19D15C) : const Color(0xFFFF3B30);
 
   return showGeneralDialog<LogEditorResult>(
     context: context,
     barrierDismissible: false,
     barrierLabel: 'log-editor',
     transitionDuration: const Duration(milliseconds: 180),
-    pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-    transitionBuilder: (ctx, anim, __, ___) {
+    pageBuilder: (_, _, _) => const SizedBox.shrink(),
+    transitionBuilder: (ctx, anim, _, _) {
       return BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 8 * anim.value,
@@ -84,12 +92,12 @@ Future<LogEditorResult?> showLogEditorSheet(
             child: WillPopScope(
               onWillPop: confirmExit,
               child: Material(
-                color: const Color(0xFF20232B),
-                borderRadius: BorderRadius.circular(16),
+                color: AppColors.backgroundLevel1,
+                borderRadius: BorderRadius.circular(12.r),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 360),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16.w),
                     child: StatefulBuilder(
                       builder: (ctx, setSt) {
                         bool ctaEnabled() {
@@ -103,10 +111,7 @@ Future<LogEditorResult?> showLogEditorSheet(
                             ctx,
                             LogEditorResult(
                               noteCtrl.text.trim(),
-                              a.abs() *
-                                  (isGood
-                                      ? 1
-                                      : 1), // положительное число; знак ставим в Cubit
+                              a.abs(), // положительное число; знак ставим в Cubit
                             ),
                           );
                         }
@@ -119,79 +124,134 @@ Future<LogEditorResult?> showLogEditorSheet(
                               children: [
                                 InkWell(
                                   onTap: () async {
-                                    if (await confirmExit())
+                                    if (await confirmExit()) {
                                       Navigator.pop(ctx, null);
+                                    }
                                   },
-                                  child: const Icon(
-                                    Icons.arrow_back_ios,
-                                    color: Colors.white,
+                                  child: Container(
+                                    width: 36.w,
+                                    height: 36.w,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.backgroundLevel2,
+                                      borderRadius: BorderRadius.circular(12.r),
+                                    ),
+                                    child: Image.asset(
+                                      'assets/icons/back.png',
+                                      width: 28.w,
+                                      height: 28.w,
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                SizedBox(width: 8.w),
                                 Expanded(
                                   child: Text(
                                     title,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.w800,
+                                      fontSize: 18.sp,
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.36,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            Divider(color: Colors.white.withOpacity(.12)),
-                            const SizedBox(height: 6),
+                            Divider(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              height: 1.h,
+                            ),
+                            SizedBox(height: 10.h),
 
                             // Note
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 hintNote,
-                                style: const TextStyle(color: Colors.white70),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13.sp,
+                                  fontFamily: 'SF Pro',
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.26,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            SizedBox(height: 6.h),
                             TextField(
                               controller: noteCtrl,
                               maxLines: 3,
-                              style: const TextStyle(color: Colors.white),
+                              cursorColor: AppColors.textlevel1,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: 0.30,
+                              ),
                               decoration: InputDecoration(
                                 hintText: 'Note',
-                                hintStyle: const TextStyle(
-                                  color: Colors.white38,
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.30),
+                                  fontSize: 15.sp,
+                                  fontFamily: 'SF Pro',
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.30,
                                 ),
                                 filled: true,
-                                fillColor: const Color(0xFF15171D),
+                                fillColor: AppColors.backgroundLevel2,
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12.r),
                                   borderSide: BorderSide.none,
                                 ),
-                                contentPadding: const EdgeInsets.all(12),
+                                contentPadding: EdgeInsets.all(12.w),
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 10),
 
                             // Amount
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 'How much money did you ${isGood ? 'save' : 'lose'}?',
-                                style: const TextStyle(color: Colors.white70),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13.sp,
+                                  fontFamily: 'SF Pro',
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.26,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            SizedBox(height: 6.h),
                             TextField(
                               controller: amountCtrl,
                               keyboardType: TextInputType.number,
                               onChanged: (_) => setSt(() {}),
-                              style: const TextStyle(color: Colors.white),
+                              cursorColor: AppColors.textlevel1,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: 0.30,
+                              ),
                               decoration: InputDecoration(
                                 hintText: hintAmount,
-                                suffixIcon: const Padding(
-                                  padding: EdgeInsets.only(right: 12),
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.30),
+                                  fontSize: 15.sp,
+                                  fontFamily: 'SF Pro',
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.30,
+                                ),
+                                suffixIcon: Padding(
+                                  padding: EdgeInsets.only(right: 12.w),
                                   child: Icon(
                                     Icons.attach_money,
-                                    color: Colors.white70,
+                                    color: Colors.white,
                                   ),
                                 ),
                                 suffixIconConstraints: const BoxConstraints(
@@ -199,52 +259,61 @@ Future<LogEditorResult?> showLogEditorSheet(
                                   minHeight: 0,
                                 ),
                                 filled: true,
-                                fillColor: const Color(0xFF15171D),
+                                fillColor: AppColors.backgroundLevel2,
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12.r),
                                   borderSide: BorderSide.none,
                                 ),
-                                contentPadding: const EdgeInsets.all(12),
+                                contentPadding: EdgeInsets.all(12.w),
                               ),
                             ),
 
-                            const SizedBox(height: 12),
+                            SizedBox(height: 20.h),
 
                             Row(
                               children: [
                                 if (isEdit)
-                                  TextButton.icon(
+                                  CupertinoButton(
+                                    padding: EdgeInsets.zero,
                                     onPressed: () async {
-                                      final ok = await showDialog<bool>(
+                                      final ok = await showCupertinoDialog<bool>(
                                         context: ctx,
                                         barrierDismissible: false,
-                                        builder: (_) => AlertDialog(
-                                          backgroundColor: const Color(
-                                            0xFF23262F,
-                                          ),
+                                        builder: (_) => CupertinoAlertDialog(
                                           title: const Text(
                                             'Final Confirmation',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w800,
-                                            ),
                                           ),
-                                          content: const Text(
-                                            'This will be permanently deleted with no way back. Still want to go on?',
-                                            style: TextStyle(
-                                              color: Colors.white70,
+                                          content: const Padding(
+                                            padding: EdgeInsets.only(top: 8),
+                                            child: Text(
+                                              'This will be permanently deleted with no way back. Still want to go on?',
                                             ),
                                           ),
                                           actions: [
-                                            TextButton(
+                                            CupertinoDialogAction(
                                               onPressed: () =>
-                                                  Navigator.pop(context, false),
-                                              child: const Text('Cancel'),
+                                                  Navigator.of(ctx).pop(false),
+                                              child: const Text(
+                                                'Cancel',
+                                                style: TextStyle(
+                                                  color: CupertinoColors
+                                                      .activeBlue,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                             ),
-                                            TextButton(
+                                            CupertinoDialogAction(
+                                              isDestructiveAction: true,
                                               onPressed: () =>
-                                                  Navigator.pop(context, true),
-                                              child: const Text('Delete'),
+                                                  Navigator.of(ctx).pop(true),
+                                              child: const Text(
+                                                'Delete',
+                                                style: TextStyle(
+                                                  color: CupertinoColors
+                                                      .destructiveRed,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -256,36 +325,76 @@ Future<LogEditorResult?> showLogEditorSheet(
                                         );
                                       }
                                     },
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.redAccent,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 36.w,
+                                          height: 36.w,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.backgroundLevel2,
+                                            borderRadius: BorderRadius.circular(
+                                              12.r,
+                                            ),
+                                          ),
+                                          child: Image.asset(
+                                            'assets/icons/delete.png',
+                                            width: 20.w,
+                                            height: 20.w,
+                                          ),
+                                        ),
+                                        SizedBox(width: 10.w),
+                                        Text(
+                                          'Delete',
+                                          style: TextStyle(
+                                            color: AppColors.errorAccent,
+                                            fontSize: 15.sp,
+                                            fontFamily: 'SF Pro',
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.30,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    label: const Text('Delete'),
                                   ),
                                 const Spacer(),
-                                TextButton(
-                                  onPressed: ctaEnabled() ? submit : null,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Done',
-                                        style: TextStyle(
-                                          color: ctaEnabled()
-                                              ? Colors.white
-                                              : Colors.white38,
-                                          fontWeight: FontWeight.w800,
+                                Opacity(
+                                  opacity: ctaEnabled() ? 1.0 : 0.3,
+                                  child: CupertinoButton(
+                                    padding: EdgeInsets.zero,
+                                    onPressed: ctaEnabled() ? submit : null,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Done',
+                                          style: TextStyle(
+                                            color: AppColors.primaryAccent,
+                                            fontSize: 15.sp,
+                                            fontFamily: 'SF Pro',
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.30,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 16,
-                                        color: ctaEnabled()
-                                            ? accent
-                                            : Colors.white24,
-                                      ),
-                                    ],
+                                        SizedBox(width: 10.w),
+                                        Container(
+                                          width: 36.w,
+                                          height: 36.w,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.backgroundLevel2,
+                                            borderRadius: BorderRadius.circular(
+                                              12.r,
+                                            ),
+                                          ),
+                                          child: Image.asset(
+                                            'assets/icons/arrow_right.png',
+                                            width: 20.w,
+                                            height: 20.w,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],

@@ -14,7 +14,8 @@ class AchievementsState {
 class AchievementsCubit extends Cubit<AchievementsState> {
   final LevelCubit levelCubit;
   final HabitsCubit habitsCubit;
-  late final StreamSubscription _sub;
+  late final StreamSubscription _logsSub;
+  late final StreamSubscription _levelSub;
 
   AchievementsCubit(this.levelCubit, this.habitsCubit)
     : super(
@@ -25,18 +26,30 @@ class AchievementsCubit extends Cubit<AchievementsState> {
           ),
         ),
       ) {
-    _sub = habitsCubit.stream.listen((hs) {
-      final snap = ProgressService.buildSnapshot(
-        level: levelCubit.state,
-        logs: hs.logs,
+    _logsSub = habitsCubit.stream.listen((hs) {
+      emit(
+        AchievementsState(
+          ProgressService.buildSnapshot(level: levelCubit.state, logs: hs.logs),
+        ),
       );
-      emit(AchievementsState(snap));
+    });
+
+    _levelSub = levelCubit.stream.listen((lvl) {
+      emit(
+        AchievementsState(
+          ProgressService.buildSnapshot(
+            level: lvl,
+            logs: habitsCubit.state.logs,
+          ),
+        ),
+      );
     });
   }
 
   @override
   Future<void> close() async {
-    await _sub.cancel();
+    await _logsSub.cancel();
+    await _levelSub.cancel();
     return super.close();
   }
 

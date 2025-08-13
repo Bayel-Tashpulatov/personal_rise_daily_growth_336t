@@ -1,4 +1,4 @@
-const levelThresholds = [50, 100, 150, 200]; // 1→2, 2→3, 3→4, 4→5
+const levelThresholds = [3, 5, 10, 200]; // 1→2, 2→3, 3→4, 4→5
 
 class LevelState {
   final int level; // 1..5
@@ -12,6 +12,10 @@ class LevelState {
 
   bool get isMax => level == 5;
   int? get nextTarget => isMax ? null : levelThresholds[level - 1];
-  double get progress =>
-      isMax ? 1 : (points.clamp(0, nextTarget!) / nextTarget!);
+  double get progress {
+    if (isMax) return 1.0;
+    final tgt = nextTarget ?? 1;
+    final v = points / tgt;
+    return (v.isNaN || v.isInfinite) ? 0.0 : v.clamp(0.0, 1.0);
+  }
 }

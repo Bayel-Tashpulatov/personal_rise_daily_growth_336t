@@ -22,9 +22,15 @@ class _LevelScreenState extends State<LevelScreen> {
   final GlobalKey _bgKey = GlobalKey();
 
   Set<String> _lastAchievedIds = const <String>{};
-
-  int _achievedCount(AchievementsState s) =>
-      s.snapshot.achievements.where((a) => a.achieved).length;
+  @override
+  void initState() {
+    super.initState();
+    // подхватить текущее состояние после монтирования
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ach = context.read<AchievementsCubit>().state;
+      _lastAchievedIds = _achievedIds(ach);
+    });
+  }
 
   Set<String> _achievedIds(AchievementsState s) => s.snapshot.achievements
       .where((a) => a.achieved)
@@ -84,197 +90,169 @@ class _LevelScreenState extends State<LevelScreen> {
     final achCubit = context.watch<AchievementsCubit>();
     final s = levelCubit.state;
     final nearest = _pickNearestThree(achCubit.state.snapshot.achievements);
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<LevelCubit, LevelState>(
-          listenWhen: (prev, curr) => prev.level != curr.level,
-          listener: (context, state) {
-            _showOverlayToast(
-              context,
-              _levelUpToast(),
-              duration: const Duration(seconds: 10),
-            );
-          },
-        ),
-        BlocListener<AchievementsCubit, AchievementsState>(
-          listener: (context, curr) {
-            final now = _achievedIds(curr);
-            // показываем тост, только если стало больше и есть новая id
-            if (now.length > _lastAchievedIds.length) {
-              final diff = now.difference(_lastAchievedIds);
-              final newly = curr.snapshot.achievements.firstWhere(
-                (a) => a.achieved && (diff.isEmpty || diff.contains(a.def.id)),
-                orElse: () =>
-                    curr.snapshot.achievements.firstWhere((a) => a.achieved),
-              );
-              _showOverlayToast(
-                context,
-                _achievementToast(newly.def.title, newly.def.desc),
-              );
-            }
-            _lastAchievedIds = now;
-          },
-        ),
-      ],
 
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundLevel1,
-        body: Column(
-          children: [
-            Stack(
-              children: [
-                SizedBox(
-                  key: _bgKey,
-                  height: 560.h,
-                  width: double.infinity,
-                  child: Image.asset(
-                    'assets/images/level_${s.level}.png',
-                    fit: BoxFit.cover,
-                  ),
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLevel1,
+      body: Column(
+        children: [
+          Stack(
+            children: [
+              SizedBox(
+                key: _bgKey,
+                height: 560.h,
+                width: double.infinity,
+                child: Image.asset(
+                  'assets/images/level_${s.level}.png',
+                  fit: BoxFit.cover,
                 ),
+              ),
 
-                Positioned(
-                  left: 16.w,
-                  right: 16.w,
-                  bottom: 16.h,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _levelTitle(levelCubit),
-                        style: TextStyle(
-                          color: AppColors.textlevel1,
-                          fontSize: 24.sp,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.48,
-                        ),
+              Positioned(
+                left: 16.w,
+                right: 16.w,
+                bottom: 16.h,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _levelTitle(levelCubit),
+                      style: TextStyle(
+                        color: AppColors.textlevel1,
+                        fontSize: 24.sp,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.48,
                       ),
-                      SizedBox(height: 6.h),
-                      if (!s.isMax)
-                        AppProgressBar(value: s.progress, minHeight: 36)
-                      else
-                        Row(
-                          children: [
-                            _chip('Max Level!'),
-                            const SizedBox(width: 8),
-                            _chip('Your Score: ${s.maxScore}'),
-                          ],
-                        ),
-                      SizedBox(height: 10.h),
-                      Text(
-                        _levelDescription(s.level),
-                        style: TextStyle(
-                          color: AppColors.textlevel1,
-                          fontSize: 15.sp,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.30,
-                        ),
+                    ),
+                    SizedBox(height: 6.h),
+                    if (!s.isMax)
+                      AppProgressBar(
+                        value: s.progress.clamp(0.0, 1.0),
+                        minHeight: 36,
+                      )
+                    else
+                      Row(
+                        children: [
+                          _chip('Max Level!'),
+                          const SizedBox(width: 8),
+                          _chip('Your Score: ${s.maxScore}'),
+                        ],
                       ),
-                    ],
-                  ),
+                    SizedBox(height: 10.h),
+                    Text(
+                      _levelDescription(s.level),
+                      style: TextStyle(
+                        color: AppColors.textlevel1,
+                        fontSize: 15.sp,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.30,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
 
-                Positioned(
-                  top: 52.h,
-                  right: 12.w,
-                  child: CompositedTransformTarget(
-                    link: _helpLink,
-                    child: IconButton(
-                      icon: Container(
-                        width: 44.w,
-                        height: 44.h,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundLevel2,
-                          borderRadius: BorderRadius.circular(34.r),
-                        ),
-                        child: Image.asset(
-                          'assets/icons/question_mark.png',
-                          color: AppColors.textlevel1,
-                          width: 16.sp,
-                          height: 16.sp,
-                        ),
+              Positioned(
+                top: 52.h,
+                right: 12.w,
+                child: CompositedTransformTarget(
+                  link: _helpLink,
+                  child: IconButton(
+                    icon: Container(
+                      width: 44.w,
+                      height: 44.h,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLevel2,
+                        borderRadius: BorderRadius.circular(34.r),
                       ),
-                      onPressed: () => showLevelHelp(
-                        context,
-                        _helpLink,
-                        bgKey: _bgKey,
-                        anchorSize: 44,
+                      child: Image.asset(
+                        'assets/icons/question_mark.png',
+                        color: AppColors.textlevel1,
+                        width: 16.sp,
+                        height: 16.sp,
                       ),
+                    ),
+                    onPressed: () => showLevelHelp(
+                      context,
+                      _helpLink,
+                      bgKey: _bgKey,
+                      anchorSize: 44,
                     ),
                   ),
                 ),
+              ),
+            ],
+          ),
+
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 24.h),
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Achievments:',
+                      style: TextStyle(
+                        color: AppColors.textlevel1,
+                        fontSize: 18.sp,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.36,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AchievementsPage(),
+                          ),
+                        );
+                      },
+                      child: Row(
+                        children: [
+                          Text(
+                            'View All',
+                            style: TextStyle(
+                              color: AppColors.textlevel1,
+                              fontSize: 15.sp,
+                              fontFamily: 'SF Pro',
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.30,
+                            ),
+                          ),
+                          SizedBox(width: 6.w),
+                          Image.asset(
+                            'assets/icons/arrow_right.png',
+                            width: 24.w,
+                            height: 24.w,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24.h),
+
+                ...[
+                  for (int i = 0; i < nearest.length; i++)
+                    _achievementPreview(
+                      nearest[i].def.title,
+                      nearest[i].def.desc,
+                      (nearest[i].current / nearest[i].def.target)
+                          .toDouble()
+                          .clamp(0.0, 1.0),
+                      dim: i > 0,
+                    ),
+
+                  if (nearest.isEmpty) _emptyBox('All Achievements Completed!'),
+                ],
               ],
             ),
-
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 24.h),
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Achievments:',
-                        style: TextStyle(
-                          color: AppColors.textlevel1,
-                          fontSize: 18.sp,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.36,
-                        ),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const AchievementsPage(),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            Text(
-                              'View All',
-                              style: TextStyle(
-                                color: AppColors.textlevel1,
-                                fontSize: 15.sp,
-                                fontFamily: 'SF Pro',
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.30,
-                              ),
-                            ),
-                            SizedBox(width: 6.w),
-                            Image.asset(
-                              'assets/icons/arrow_right.png',
-                              width: 24.w,
-                              height: 24.w,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 24.h),
-
-                  ...[
-                    for (int i = 0; i < nearest.length; i++)
-                      _achievementPreview(
-                        nearest[i].def.title,
-                        nearest[i].def.desc,
-                        nearest[i].current / nearest[i].def.target,
-                        dim: i > 0, // первая — норм, остальные — тусклее
-                      ),
-                    if (nearest.isEmpty)
-                      _emptyBox('All Achievements Completed!'),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -298,7 +276,7 @@ class _LevelScreenState extends State<LevelScreen> {
     bool dim = false,
   }) {
     return Opacity(
-      opacity: dim ? 0.1 : 1.0,
+      opacity: dim ? 0.3 : 1.0,
       child: Container(
         margin: EdgeInsets.only(bottom: 8.h),
         padding: EdgeInsets.all(8.w),
@@ -331,7 +309,7 @@ class _LevelScreenState extends State<LevelScreen> {
               ),
             ),
             SizedBox(height: 4.h),
-            AppProgressBar(value: value, minHeight: 16),
+            AppProgressBar(value: value.clamp(0.0, 1.0), minHeight: 16),
           ],
         ),
       ),
@@ -393,18 +371,11 @@ class _LevelScreenState extends State<LevelScreen> {
     final entry = OverlayEntry(
       builder: (ctx) => SafeArea(
         child: IgnorePointer(
-          ignoring: true, // клики проходят сквозь
+          ignoring: true,
           child: Container(
             alignment: Alignment.topCenter,
             margin: const EdgeInsets.only(top: 12),
-            child: Material(
-              color: Colors.transparent,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: 1,
-                child: child,
-              ),
-            ),
+            child: Material(color: Colors.transparent, child: child),
           ),
         ),
       ),
@@ -412,7 +383,10 @@ class _LevelScreenState extends State<LevelScreen> {
 
     overlay.insert(entry);
     Future.delayed(duration, () {
-      entry.remove();
+      // на случай если экран уже размонтирован
+      try {
+        entry.remove();
+      } catch (_) {}
     });
   }
 
@@ -457,16 +431,4 @@ class _LevelScreenState extends State<LevelScreen> {
       ),
     );
   }
-
-  Widget _levelUpToast() => _toastContainer(
-    leading: const Text('⭐', style: TextStyle(fontSize: 18)),
-    title: 'Level up!',
-    subtitle: 'Your character has evolved thanks to your discipline.',
-  );
-
-  Widget _achievementToast(String title, String desc) => _toastContainer(
-    leading: const Text('🏆', style: TextStyle(fontSize: 18)),
-    title: 'New Achievement!',
-    subtitle: '$title — $desc',
-  );
 }

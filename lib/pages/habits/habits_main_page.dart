@@ -5,9 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
-import 'package:personal_rise_daily_growth_336t/pages/habits/add_bad_habit_flow.dart';
-import 'package:personal_rise_daily_growth_336t/pages/habits/add_good_habit_flow.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/habit_details_page.dart';
+import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/habit_editor_flow.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class HabitsMainPage extends StatefulWidget {
@@ -37,7 +36,7 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(12.w, 16.h, 12.w, 24.h),
+          padding: EdgeInsets.fromLTRB(12.w, 16.h, 12.w, 120.h),
           children: [
             _HeaderCard(
               title: isPositive ? 'Start Now!' : 'Watch Out!',

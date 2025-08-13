@@ -1,12 +1,14 @@
 // lib/pages/habit_details_page.dart
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
-
 import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
+import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/habit_editor_flow.dart';
+import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/habit_editor_widgets.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/log_editor_sheet.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
@@ -86,8 +88,33 @@ class HabitDetailsPage extends StatelessWidget {
               width: 44.w,
               height: 44.w,
             ),
-            onPressed: () {
-              // экран редактирования при необходимости
+            onPressed: () async {
+              await showHabitEditorFlow(
+                context,
+                kind: habit.kind,
+                initialHabit: habit,
+                onDone: (draft) async {
+                  // сохранить правки
+                  final freqIndex = habit.kind == HabitKind.good
+                      ? indexFromFreq(draft.frequency) // твоя утилита
+                      : null;
+                  final updated = habit.copyWith(
+                    name: draft.name,
+                    description: draft.description,
+                    goal: draft.goal.isEmpty ? null : draft.goal,
+                    frequencyIndex: freqIndex,
+                  );
+                  await context.read<HabitsCubit>().updateHabit(updated);
+                },
+                onDelete: () async {
+                  // Удаляем из стора...
+                  await context.read<HabitsCubit>().deleteHabit(habit.id);
+                  // ...и закрываем страницу деталей (редактор уже сам закрылся)
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              );
             },
           ),
         ],
@@ -364,26 +391,16 @@ class HabitDetailsPage extends StatelessWidget {
     );
   }
 
-  // Widget _sectionTitle(String t) => Padding(
-  //   padding: EdgeInsets.only(bottom: 6.h),
-  //   child: Text(
-  //     t,
-  //     style: const TextStyle(
-  //       color: Colors.white,
-  //       fontWeight: FontWeight.w800,
-  //       fontSize: 16,
-  //     ),
-  //   ),
-  // );
-
   Widget _markButton({
     required bool isGood,
     required bool enabled,
     required VoidCallback onTap,
   }) {
-    final color = isGood ? const Color(0xFF19D15C) : const Color(0xFFFF3B30);
+    final color = isGood ? AppColors.successAccent : AppColors.errorAccent;
     final text = isGood ? 'Mark as Done' : 'I Slipped';
-    final icon = isGood ? Icons.add_circle : Icons.remove_circle;
+    final icon = isGood
+        ? 'assets/icons/add_positive.png'
+        : 'assets/icons/add_negative.png';
 
     return Opacity(
       opacity: enabled ? 1 : .5,
@@ -392,19 +409,25 @@ class HabitDetailsPage extends StatelessWidget {
         child: Container(
           height: 44.h,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10.r),
-            border: Border.all(color: color, width: 1.2),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: color, width: 1.w),
           ),
-          padding: EdgeInsets.symmetric(horizontal: 14.w),
+          padding: EdgeInsets.all(12.w),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   text,
-                  style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.26,
+                  ),
                 ),
               ),
-              Icon(icon, color: color),
+              Image.asset(icon, width: 20.w, height: 20.w),
             ],
           ),
         ),
@@ -420,13 +443,11 @@ class HabitDetailsPage extends StatelessWidget {
     final df = DateFormat('d MMM, yyyy');
     final isPositive = l.amount > 0;
     final shown = isPositive ? l.amount : -l.amount;
-    final color = isPositive
-        ? const Color(0xFF19D15C)
-        : const Color(0xFFFF3B30);
+    final color = isPositive ? AppColors.successAccent : AppColors.errorAccent;
 
     return InkWell(
       onTap: () async {
-        final edited = await showLogEditorSheet(
+        final edited = await showLogEditorSheet( 
           context,
           isGood: isPositive,
           isEdit: true,
@@ -450,7 +471,7 @@ class HabitDetailsPage extends StatelessWidget {
         margin: EdgeInsets.only(bottom: 8.h),
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1D24),
+          color: AppColors.backgroundLevel2,
           borderRadius: BorderRadius.circular(12.r),
         ),
         child: Row(
@@ -459,105 +480,51 @@ class HabitDetailsPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    df.format(l.date),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        df.format(l.date),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.60),
+                          fontSize: 15.sp,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.30,
+                        ),
+                      ),
+                      Text(
+                        (isPositive ? '+\$' : '-\$') +
+                            NumberFormat('#,###').format(shown),
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 14.sp,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.28,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 4.h),
+                  SizedBox(height: 8.h),
                   Text(
                     (l.note?.trim().isNotEmpty ?? false)
                         ? l.note!.trim()
                         : (isPositive ? 'Logged action' : 'Slip recorded'),
-                    style: TextStyle(color: Colors.white.withOpacity(.85)),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.sp,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.30,
+                    ),
                   ),
                 ],
               ),
-            ),
-            Text(
-              (isPositive ? '+\$' : '-\$') +
-                  NumberFormat('#,###').format(shown),
-              style: TextStyle(color: color, fontWeight: FontWeight.w800),
             ),
           ],
         ),
       ),
     );
   }
-}
-
-// ===== bottom-sheet только для суммы =====
-
-Future<int?> _askAmount(BuildContext context, {required bool isGood}) async {
-  final ctrl = TextEditingController();
-  return showModalBottomSheet<int>(
-    context: context,
-    backgroundColor: const Color(0xFF20232B),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    isScrollControlled: true,
-    builder: (ctx) {
-      final color = isGood ? const Color(0xFF19D15C) : const Color(0xFFFF3B30);
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          16 + MediaQuery.of(ctx).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              isGood ? 'Money Saved (\$)' : 'Money Lost (\$)',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: ctrl,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF15171D),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: color,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  final v = int.tryParse(ctrl.text.trim()) ?? 0;
-                  Navigator.pop(ctx, v.abs());
-                },
-                child: const Text(
-                  'Save',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
 }
