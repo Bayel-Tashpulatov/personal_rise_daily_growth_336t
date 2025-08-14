@@ -10,6 +10,7 @@ void showLevelHelp(
   LayerLink link, {
   required GlobalKey bgKey, // где размывать фото
   double anchorSize = 44,
+  Widget? content, // <— новый параметр
 }) {
   _levelHelpEntry?.remove();
   _levelHelpEntry = null;
@@ -23,9 +24,23 @@ void showLevelHelp(
     _levelHelpEntry = null;
   }
 
+  // final bubbleDx = -(maxBubbleW - anchorSize); // выравниваем правые края
   final screenW = MediaQuery.of(context).size.width;
   final maxBubbleW = (screenW - 24).clamp(0, 320).toDouble();
-  final bubbleDx = -(maxBubbleW - anchorSize); // выравниваем правые края
+
+  // базовый оффсет — под кнопкой
+  var bubbleOffset = Offset(-(maxBubbleW - anchorSize), anchorSize + 8);
+
+  // если вдруг выходим за левый край — подвигать вправо
+  final anchorGlobal = link.leader?.offset ?? Offset.zero;
+  final bubbleLeft = anchorGlobal.dx + bubbleOffset.dx;
+  final bubbleRight = bubbleLeft + maxBubbleW;
+  if (bubbleLeft < 12) {
+    bubbleOffset = bubbleOffset.translate(12 - bubbleLeft, 0);
+  }
+  if (bubbleRight > screenW - 12) {
+    bubbleOffset = bubbleOffset.translate((screenW - 12) - bubbleRight, 0);
+  }
 
   _levelHelpEntry = OverlayEntry(
     builder: (ctx) => Stack(
@@ -42,15 +57,7 @@ void showLevelHelp(
             child: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.black],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
+                child: const SizedBox.expand(),
               ),
             ),
           ),
@@ -59,9 +66,28 @@ void showLevelHelp(
         // --- 2) Размыть САМУ кнопку "?" кругом (но не мешать тачам) ---
         IgnorePointer(
           ignoring: true, // тапы проходят сквозь
-          child: CompositedTransformFollower(
+          child: // «Клон» кнопки поверх размытия, тапы проходят к настоящей кнопке
+          CompositedTransformFollower(
             link: link,
-            showWhenUnlinked: true,
+            showWhenUnlinked: false,
+            child: IgnorePointer(
+              ignoring: true,
+              child: Container(
+                width: anchorSize,
+                height: anchorSize,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLevel2,
+                  borderRadius: BorderRadius.circular(34.r),
+                ),
+                child: Image.asset(
+                  'assets/icons/question_mark.png',
+                  color: AppColors.textlevel1,
+                  width: 16.sp,
+                  height: 16.sp,
+                ),
+              ),
+            ),
           ),
         ),
 
@@ -69,7 +95,8 @@ void showLevelHelp(
         CompositedTransformFollower(
           link: link,
           showWhenUnlinked: false,
-          offset: Offset(bubbleDx, anchorSize + 8),
+
+          offset: bubbleOffset,
           child: _SpeechBubble(
             color: AppColors.backgroundLevel2,
             radius: 12,
@@ -78,8 +105,13 @@ void showLevelHelp(
             tailSide: BubbleSide.top,
             tailWidth: 20,
             tailHeight: 20,
-            tailX: anchorSize / 2, // хвост в центр кнопки
-            child: const _HelpContent(),
+            tailX:
+                (anchorSize / 2) +
+                (-(bubbleOffset.dx)).clamp(
+                  0,
+                  maxBubbleW,
+                ), // хвост остаётся «на кнопке»
+            child: content ?? const HelpContentLevel(),
           ),
         ),
       ],
@@ -97,80 +129,62 @@ void hideLevelHelp() {
   _levelHelpEntry = null;
 }
 
-// Текст внутри
-class _HelpContent extends StatelessWidget {
-  const _HelpContent();
+class HelpContentLevel extends StatelessWidget {
+  const HelpContentLevel({
+    super.key,
+    this.goodPoint = 1,
+    this.badPenalty = 3,
+    this.target = 50,
+    this.current = 0,
+    this.total = 50,
+  });
+
+  final int goodPoint;
+  final int badPenalty;
+  final int target;
+  final int current;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text.rich(
+    final base = TextStyle(
+      color: AppColors.textlevel1,
+      fontSize: 15.sp,
+      fontFamily: 'SF Pro',
+      height: 1.47,
+      letterSpacing: .30,
+      fontWeight: FontWeight.w400,
+    );
+    final strong = base.copyWith(fontWeight: FontWeight.w700);
+    return Text.rich(
+      TextSpan(
+        children: [
           TextSpan(
-            children: [
-              TextSpan(
-                text:
-                    'Only good habits increase your level.\nEach good habit = ',
-                style: TextStyle(
-                  color: AppColors.textlevel1,
-                  fontSize: 15.sp,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w400,
-                  height: 1.47,
-                  letterSpacing: 0.30,
-                ),
-              ),
-              TextSpan(
-                text: '+1',
-                style: TextStyle(
-                  color: AppColors.successAccent,
-                  fontSize: 15.sp,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w700,
-                  height: 1.47,
-                  letterSpacing: 0.30,
-                ),
-              ),
-              TextSpan(
-                text: ' point.\nBad habits reduce progress by ',
-                style: TextStyle(
-                  color: AppColors.textlevel1,
-                  fontSize: 15.sp,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w400,
-                  height: 1.47,
-                  letterSpacing: 0.30,
-                ),
-              ),
-              TextSpan(
-                text: '3',
-                style: TextStyle(
-                  color: AppColors.errorAccent,
-                  fontSize: 15.sp,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w700,
-                  height: 1.47,
-                  letterSpacing: 0.30,
-                ),
-              ),
-              TextSpan(
-                text:
-                    ' point.\nTo reach next level earn 50 points       Current: 0 / 50',
-                style: TextStyle(
-                  color: AppColors.textlevel1,
-                  fontSize: 15.sp,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w400,
-                  height: 1.47,
-                  letterSpacing: 0.30,
-                ),
-              ),
-            ],
+            text: 'Only good habits increase your level.\n',
+            style: base,
           ),
-        ),
-      ],
+          TextSpan(text: 'Each good habit = ', style: base),
+          TextSpan(
+            text: '+$goodPoint',
+            style: strong.copyWith(color: AppColors.successAccent),
+          ),
+          TextSpan(text: ' point.\n', style: base),
+
+          TextSpan(text: 'Bad habits reduce progress by ', style: base),
+          TextSpan(
+            text: '$badPenalty',
+            style: strong.copyWith(color: AppColors.errorAccent),
+          ),
+          TextSpan(text: ' point.\n', style: base),
+
+          TextSpan(text: 'To reach next level earn ', style: base),
+          TextSpan(text: '$target', style: strong),
+          TextSpan(text: ' points\n', style: base),
+
+          TextSpan(text: 'Current: ', style: base),
+          TextSpan(text: '$current / $total', style: strong),
+        ],
+      ),
     );
   }
 }
@@ -184,10 +198,11 @@ class _SpeechBubble extends StatelessWidget {
     required this.radius,
     required this.padding,
     required this.tailSide,
-    required this.tailX, // позиция хвоста вдоль стороны (в пикселях от левого/верхнего края)
-    this.tailWidth = 12,
-    this.tailHeight = 8,
+    required this.tailX,
+    this.tailWidth = 14,
+    this.tailHeight = 10,
     this.maxWidth,
+    this.elevation = 12,
   });
 
   final Widget child;
@@ -195,40 +210,34 @@ class _SpeechBubble extends StatelessWidget {
   final double radius;
   final EdgeInsets padding;
   final BubbleSide tailSide;
-  final double tailX;
+  final double tailX; // позиция хвоста вдоль стороны (px)
   final double tailWidth;
   final double tailHeight;
   final double? maxWidth;
+  final double elevation;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      elevation: 6,
-      child: CustomPaint(
-        painter: _BubblePainter(
-          color: color,
-          radius: radius,
-          tailSide: tailSide,
-          tailX: tailX,
-          tailWidth: tailWidth,
-          tailHeight: tailHeight,
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth ?? 360),
-          child: Padding(
-            // отступ, чтобы контент не залезал на треугольник
-            padding:
-                padding +
-                EdgeInsets.only(
-                  top: tailSide == BubbleSide.top ? tailHeight : 0,
-                  bottom: tailSide == BubbleSide.bottom ? tailHeight : 0,
-                  left: tailSide == BubbleSide.left ? tailHeight : 0,
-                  right: tailSide == BubbleSide.right ? tailHeight : 0,
-                ),
-            child: child,
-          ),
-        ),
+    final extraPad = EdgeInsets.only(
+      top: tailSide == BubbleSide.top ? tailHeight : 0,
+      bottom: tailSide == BubbleSide.bottom ? tailHeight : 0,
+      left: tailSide == BubbleSide.left ? tailHeight : 0,
+      right: tailSide == BubbleSide.right ? tailHeight : 0,
+    );
+
+    return CustomPaint(
+      painter: _BubblePainter(
+        color: color,
+        radius: radius,
+        tailSide: tailSide,
+        tailX: tailX,
+        tailWidth: tailWidth,
+        tailHeight: tailHeight,
+        elevation: elevation,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth ?? 340),
+        child: Padding(padding: padding + extraPad, child: child),
       ),
     );
   }
@@ -242,6 +251,7 @@ class _BubblePainter extends CustomPainter {
     required this.tailX,
     required this.tailWidth,
     required this.tailHeight,
+    required this.elevation,
   });
 
   final Color color;
@@ -250,52 +260,65 @@ class _BubblePainter extends CustomPainter {
   final double tailX;
   final double tailWidth;
   final double tailHeight;
+  final double elevation;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
+    final r = Radius.circular(radius);
+    final rect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      topLeft: r,
+      topRight: r,
+      bottomLeft: r,
+      bottomRight: r,
+    );
 
-    // основное тело
-    final bodyRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final rrect = RRect.fromRectAndRadius(bodyRect, Radius.circular(radius));
-    canvas.drawRRect(rrect, paint);
+    final path = Path()..addRRect(rect);
 
-    // хвост — треугольник, точка привязки tailX
-    final path = Path();
+    // Добавляем «хвостик» в тот же path (без шва)
     switch (tailSide) {
       case BubbleSide.top:
-        final x = tailX.clamp(8, size.width - 8).toDouble();
-        path.moveTo(x, 0);
-        path.lineTo(x - tailWidth / 2, 0);
-        path.lineTo(x, -tailHeight);
-        path.lineTo(x + tailWidth / 2, 0);
-        path.close();
-        break;
+        {
+          final x = tailX.clamp(8, size.width - 8).toDouble();
+          final y = 0.0;
+          path.moveTo(x - tailWidth / 2, y);
+          path.relativeLineTo(tailWidth / 2, -tailHeight);
+          path.relativeLineTo(tailWidth / 2, tailHeight);
+          break;
+        }
       case BubbleSide.bottom:
-        final x2 = tailX.clamp(8, size.width - 8).toDouble();
-        path.moveTo(x2, size.height);
-        path.lineTo(x2 - tailWidth / 2, size.height);
-        path.lineTo(x2, size.height + tailHeight);
-        path.lineTo(x2 + tailWidth / 2, size.height);
-        path.close();
-        break;
+        {
+          final x = tailX.clamp(8, size.width - 8).toDouble();
+          final y = size.height;
+          path.moveTo(x - tailWidth / 2, y);
+          path.relativeLineTo(tailWidth / 2, tailHeight);
+          path.relativeLineTo(tailWidth / 2, -tailHeight);
+          break;
+        }
       case BubbleSide.left:
-        final y = tailX.clamp(8, size.height - 8).toDouble();
-        path.moveTo(0, y);
-        path.lineTo(0, y - tailWidth / 2);
-        path.lineTo(-tailHeight, y);
-        path.lineTo(0, y + tailWidth / 2);
-        path.close();
-        break;
+        {
+          final y = tailX.clamp(8, size.height - 8).toDouble();
+          final x = 0.0;
+          path.moveTo(x, y - tailWidth / 2);
+          path.relativeLineTo(-tailHeight, tailWidth / 2);
+          path.relativeLineTo(tailHeight, tailWidth / 2);
+          break;
+        }
       case BubbleSide.right:
-        final y2 = tailX.clamp(8, size.height - 8).toDouble();
-        path.moveTo(size.width, y2);
-        path.lineTo(size.width, y2 - tailWidth / 2);
-        path.lineTo(size.width + tailHeight, y2);
-        path.lineTo(size.width, y2 + tailWidth / 2);
-        path.close();
-        break;
+        {
+          final y = tailX.clamp(8, size.height - 8).toDouble();
+          final x = size.width;
+          path.moveTo(x, y - tailWidth / 2);
+          path.relativeLineTo(tailHeight, tailWidth / 2);
+          path.relativeLineTo(-tailHeight, tailWidth / 2);
+          break;
+        }
     }
+
+    // мягкая тень
+    canvas.drawShadow(path, Colors.black.withOpacity(.6), elevation, true);
+    // сам пузырь
+    final paint = Paint()..color = color;
     canvas.drawPath(path, paint);
   }
 
@@ -306,5 +329,6 @@ class _BubblePainter extends CustomPainter {
       old.tailSide != tailSide ||
       old.tailX != tailX ||
       old.tailWidth != tailWidth ||
-      old.tailHeight != tailHeight;
+      old.tailHeight != tailHeight ||
+      old.elevation != elevation;
 }

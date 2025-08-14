@@ -173,12 +173,22 @@ class _LevelScreenState extends State<LevelScreen> {
                         height: 16.sp,
                       ),
                     ),
-                    onPressed: () => showLevelHelp(
-                      context,
-                      _helpLink,
-                      bgKey: _bgKey,
-                      anchorSize: 44,
-                    ),
+                    onPressed: () {
+                      final level = context.read<LevelCubit>().state;
+                      showLevelHelp(
+                        context,
+                        _helpLink,
+                        bgKey: _bgKey,
+                        anchorSize: 44,
+                        content: HelpContentLevel(
+                          goodPoint: 1,
+                          badPenalty: 3,
+                          target: level.nextTarget ?? 0,
+                          current: level.points,
+                          total: level.nextTarget ?? level.points,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -204,11 +214,9 @@ class _LevelScreenState extends State<LevelScreen> {
                     const Spacer(),
                     GestureDetector(
                       onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const AchievementsPage(),
-                          ),
-                        );
+                        Navigator.of(
+                          context,
+                        ).push(_slideRightToLeft(const AchievementsPage()));
                       },
                       child: Row(
                         children: [
@@ -359,75 +367,17 @@ class _LevelScreenState extends State<LevelScreen> {
         return '';
     }
   }
-
-  void _showOverlayToast(
-    BuildContext context,
-    Widget child, {
-    Duration duration = const Duration(seconds: 6),
-  }) {
-    final overlay = Overlay.of(context, rootOverlay: true);
-
-    final entry = OverlayEntry(
-      builder: (ctx) => SafeArea(
-        child: IgnorePointer(
-          ignoring: true,
-          child: Container(
-            alignment: Alignment.topCenter,
-            margin: const EdgeInsets.only(top: 12),
-            child: Material(color: Colors.transparent, child: child),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(entry);
-    Future.delayed(duration, () {
-      // на случай если экран уже размонтирован
-      try {
-        entry.remove();
-      } catch (_) {}
-    });
-  }
-
-  Widget _toastContainer({
-    required Widget leading,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2E37),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(color: Colors.white70),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+Route<T> _slideRightToLeft<T>(Widget page) => PageRouteBuilder<T>(
+  transitionDuration: const Duration(milliseconds: 500),
+  reverseTransitionDuration: const Duration(milliseconds: 280),
+  pageBuilder: (context, animation, secondaryAnimation) => page,
+  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+    final ani = Tween<Offset>(
+      begin: const Offset(1, 0),
+      end: Offset.zero,
+    ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation);
+    return SlideTransition(position: ani, child: child);
+  },
+);

@@ -1,5 +1,6 @@
 import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
+import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
 import 'package:personal_rise_daily_growth_336t/pages/statistics/statistics_page.dart';
 
 extension StatsSelectors on HabitsCubit {
@@ -78,5 +79,54 @@ extension StatsSelectors on HabitsCubit {
         total: e.value,
       );
     }).toList();
+  }
+
+  List<({Habit habit, int total, int monthsCovered})> topHabitsForWindow({
+    required MonthKey mk,
+    required bool positive, // true=good(+), false=bad(-)
+    required int windowMonths,
+    int limit = 3,
+  }) {
+    // соберём даты-границы окна
+    DateTime end = DateTime(mk.y, mk.m, 1); // первый день выбранного месяца
+    DateTime start = DateTime(end.year, end.month - (windowMonths - 1), 1);
+
+    // сгруппируем логи по привычкам
+    final byId = <String, List<HabitLog>>{};
+    for (final l in state.logs) {
+      // берём **только** логи внутри окна
+      final d = DateTime(l.date.year, l.date.month, 1);
+      if (d.isBefore(start) || d.isAfter(end)) continue;
+
+      if (positive && l.amount <= 0) continue;
+      if (!positive && l.amount >= 0) continue;
+
+      (byId[l.habitId] ??= []).add(l);
+    }
+
+    // посчитаем сумму и покрытые месяцы
+    // monthsCovered — число уникальных месяцев, где у этой привычки были логи в окне
+    final items = <({Habit habit, int total, int monthsCovered})>[];
+    final allHabits = {for (final h in state.habits) h.id: h};
+
+    byId.forEach((id, logs) {
+      final h = allHabits[id];
+      if (h == null) return;
+
+      int sum = 0;
+      final covered = <String>{}; // "YYYY-MM"
+      for (final l in logs) {
+        sum += positive ? l.amount : -l.amount; // bad — модуль
+        covered.add(
+          '${l.date.year}-${l.date.month.toString().padLeft(2, '0')}',
+        );
+      }
+
+      items.add((habit: h, total: sum, monthsCovered: covered.length));
+    });
+
+    // отсортируем по сумме по убыванию
+    items.sort((a, b) => b.total.compareTo(a.total));
+    return items.take(limit).toList();
   }
 }

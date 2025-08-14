@@ -77,9 +77,25 @@ class _StatisticsPageState extends State<StatisticsPage> {
     }
 
     final totals = hc.totalsFor(selected);
-    final topGood = hc.topHabits(mk: selected, positive: true);
-    final topBad = hc.topHabits(mk: selected, positive: false);
     final yearly = hc.seriesForYear(selected.y);
+    final topGood = hc.topHabitsForWindow(
+      mk: selected,
+      positive: true,
+      windowMonths: 7,
+    );
+
+    final topBad = hc.topHabitsForWindow(
+      mk: selected,
+      positive: false,
+      windowMonths: 14,
+    );
+    final goodLabel = topGood.length <= 1
+        ? 'For Last Month:'
+        : 'For Last ${topGood.length} Months:';
+
+    final badLabel = topBad.length <= 1
+        ? 'For Last Month:'
+        : 'For Last ${topBad.length} Months:';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLevel1,
@@ -172,13 +188,31 @@ class _StatisticsPageState extends State<StatisticsPage> {
             TopSection(
               title: 'Top Positive Habits',
               positive: true,
-              items: topGood,
+              items: topGood
+                  .map(
+                    (e) => (
+                      habit: e.habit,
+                      total: e.total,
+                      periodLabel: 'For Last ${e.monthsCovered} Month:',
+                    ),
+                  )
+                  .toList(),
+              periodLabel: goodLabel,
             ),
             SizedBox(height: 24.h),
             TopSection(
               title: 'Top Negative Habits',
               positive: false,
-              items: topBad,
+              items: topBad
+                  .map(
+                    (e) => (
+                      habit: e.habit,
+                      total: e.total,
+                      periodLabel: 'For Last ${e.monthsCovered} Month:',
+                    ),
+                  )
+                  .toList(),
+              periodLabel: badLabel,
             ),
 
             if (hc.state.habits.isEmpty) ...[

@@ -43,6 +43,9 @@ class CardShellHabit extends StatelessWidget {
     required this.ctaEnabled,
     required this.ctaText,
     this.trailingActions,
+    this.contentKey, // <- НОВОЕ
+    this.slideForward = true, // <- НОВОЕ: true = вправо->влево
+    this.switchDuration = const Duration(milliseconds: 280), // <- НОВОЕ
   });
 
   final String title;
@@ -53,9 +56,38 @@ class CardShellHabit extends StatelessWidget {
   final String ctaText;
   final List<Widget>? trailingActions;
 
+  /// НОВОЕ: ключ текущего контента (например, ValueKey(step))
+  final Key? contentKey;
+
+  /// НОВОЕ: направление слайда: true=вперёд (справа->налево), false=назад
+  final bool slideForward;
+
+  /// НОВОЕ: длительность анимации свитчера
+  final Duration switchDuration;
+
   @override
   Widget build(BuildContext context) {
     final divider = Colors.white.withValues(alpha: .10);
+
+    // переходы для AnimatedSwitcher
+    SlideTransition _slide(BuildContext _, Animation<double> anim, Widget ch) {
+      final inTween = Tween<Offset>(
+        begin: Offset(slideForward ? 1 : -1, 0),
+        end: Offset.zero,
+      ).chain(CurveTween(curve: Curves.easeOutCubic));
+
+      final outTween = Tween<Offset>(
+        begin: Offset.zero,
+        end: Offset(slideForward ? -1 : 1, 0),
+      ).chain(CurveTween(curve: Curves.easeInCubic));
+
+      // outgoing-анимация идёт в reverse
+      final isOutgoing = anim.status == AnimationStatus.reverse;
+      final tween = isOutgoing ? outTween : inTween;
+
+      return SlideTransition(position: anim.drive(tween), child: ch);
+    }
+
     return Material(
       color: AppColors.backgroundLevel1,
       borderRadius: BorderRadius.circular(12.r),
@@ -66,6 +98,7 @@ class CardShellHabit extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // ----- Header
               Row(
                 children: [
                   InkWell(
@@ -105,7 +138,18 @@ class CardShellHabit extends StatelessWidget {
               SizedBox(height: 8.h),
               Divider(color: divider, height: 1.h),
 
-              child,
+              // ----- CONTENT с анимацией слайда
+              AnimatedSwitcher(
+                duration: switchDuration,
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (ch, anim) =>
+                    ClipRect(child: _slide(context, anim, ch)),
+                child: KeyedSubtree(
+                  key: contentKey ?? const ValueKey('__static__'),
+                  child: child,
+                ),
+              ),
 
               SizedBox(height: 4.h),
               Row(

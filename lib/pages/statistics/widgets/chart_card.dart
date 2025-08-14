@@ -1,4 +1,3 @@
-// lib/features/statistics/presentation/widgets/chart_card.dart
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -7,8 +6,8 @@ import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class ChartCard extends StatelessWidget {
   final List<({String label, int saved, int lost})>
-  yearly; // 12 элементов, Jan..Dec
-  final int highlightMonth; // 1..12 (текущий выбранный месяц)
+  yearly; // строго 12 позиций (Jan..Dec)
+  final int highlightMonth; // 1..12
 
   const ChartCard({
     super.key,
@@ -18,37 +17,37 @@ class ChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ширина одной «ячейки» месяца — чтобы уместилось ~7 месяцев
-    final monthWidth = 58.0.w;
-    final chartHeight = 180.0.h;
+    // ширина одной «ячейки» месяца: сама колонка + ~12px визуального шага
+    final double monthCell = (24.0 + 12.0).w; // можно подстроить
+    final double chartHeight = 180.h;
+    final double yAxisGutter = 44.w; // фиксированная ось слева
 
-    // нормализуем вход: всегда 12
-    final data = yearly.length == 12
-        ? yearly
-        : List<({String label, int saved, int lost})>.generate(
-            12,
-            (i) => i < yearly.length
-                ? yearly[i]
-                : (label: _monthShort(i + 1), saved: 0, lost: 0),
-          );
+    // Нормализуем: всегда 12 записей
+    final data = List<({String label, int saved, int lost})>.generate(
+      12,
+      (i) => i < yearly.length
+          ? yearly[i]
+          : (label: _monthShort(i + 1), saved: 0, lost: 0),
+    );
 
-    // ymax с «красивым» округлением
+    // ymax (красиво округляем вверх); если всё нули — показываем шкалу 0..100
     final maxVal = data.fold<int>(
       0,
       (m, e) => math.max(m, math.max(e.saved.abs(), e.lost.abs())),
     );
     final yMax = _niceCeil(maxVal);
 
-    // точки
+    // точки (по X — целые шаги 0..11; горизонтальный «зазор» даём через ширину канвы)
     final savedSpots = <FlSpot>[];
     final lostSpots = <FlSpot>[];
-    for (var i = 0; i < 12; i++) {
+    for (int i = 0; i < 12; i++) {
       savedSpots.add(FlSpot(i.toDouble(), data[i].saved.toDouble()));
       lostSpots.add(FlSpot(i.toDouble(), data[i].lost.toDouble()));
     }
 
+    // Сам график — БЕЗ левых подписей (ось Y мы рисуем отдельно), но с сеткой
     final chart = SizedBox(
-      width: monthWidth * 12, // вся лента на 12 месяцев
+      width: monthCell * 12,
       height: chartHeight,
       child: LineChart(
         LineChartData(
@@ -56,17 +55,31 @@ class ChartCard extends StatelessWidget {
           maxX: 11,
           minY: 0,
           maxY: yMax.toDouble(),
-          clipData: const FlClipData.all(),
+          clipData: const FlClipData(
+            top: true,
+            bottom: true,
+            left: false,
+            right: false,
+          ),
+
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
-            getDrawingHorizontalLine: (v) =>
-                FlLine(color: Colors.white.withOpacity(.08), strokeWidth: 1),
-            horizontalInterval: yMax == 0 ? 20 : _gridStep(yMax),
+            getDrawingHorizontalLine: (v) => FlLine(
+              color: Colors.white.withValues(alpha: 0.10),
+              strokeWidth: 1.w,
+            ),
+            horizontalInterval: yMax == 0 ? 20 : (yMax / 5).toDouble(),
           ),
+          // оставим внешнюю рамку очень тонкой/незаметной
           borderData: FlBorderData(
             show: true,
-            border: Border.all(color: Colors.white.withOpacity(.06), width: 1),
+            border: Border.symmetric(
+              horizontal: BorderSide(
+                color: Colors.white.withValues(alpha: 0.10),
+                width: 1.w,
+              ),
+            ),
           ),
           titlesData: FlTitlesData(
             topTitles: const AxisTitles(
@@ -75,79 +88,83 @@ class ChartCard extends StatelessWidget {
             rightTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false),
             ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 36,
-                getTitlesWidget: (v, _) {
-                  if (yMax == 0) {
-                    // показать 0 и $100 как на пустом мокапе
-                    if (v == 0) return _yLabel('\$0');
-                    if (v == 100) return _yLabel('\$100');
-                    return const SizedBox.shrink();
-                  }
-                  final step = _gridStep(yMax);
-                  // рисуем только кратные шагу
-                  if ((v % step).abs() < 0.001) {
-                    return _yLabel('\$${v.toInt()}');
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false), // <-- скрыли
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                getTitlesWidget: (v, meta) {
+                reservedSize: 24, // чуть места под подписи
+                interval: 1,
+                getTitlesWidget: (v, _) {
                   final i = v.toInt();
                   if (i < 0 || i > 11) return const SizedBox.shrink();
-                  final monthIndex = i + 1;
-                  final isHi = monthIndex == highlightMonth;
+                  final isHi = (i + 1) == highlightMonth;
                   return Padding(
-                    padding: EdgeInsets.only(top: 6.h),
+                    padding: EdgeInsets.only(top: 4.h),
                     child: Text(
                       data[i].label,
                       style: TextStyle(
                         color: isHi
                             ? AppColors.textlevel1
-                            : AppColors.textlevel1.withOpacity(.35),
-                        fontWeight: isHi ? FontWeight.w900 : FontWeight.w600,
-                        fontSize: isHi ? 13.sp : 12.sp,
+                            : AppColors.textlevel1.withValues(alpha: 0.30),
+                        fontWeight: isHi ? FontWeight.w900 : FontWeight.w400,
+                        fontSize: 12.sp,
+                        fontFamily: 'SF Pro',
+                        letterSpacing: 0.24,
                       ),
                     ),
                   );
                 },
-                interval: 1,
               ),
             ),
           ),
-          lineTouchData: LineTouchData(enabled: false),
+          lineTouchData: const LineTouchData(enabled: false),
           lineBarsData: [
-            // Saved — зелёная с градиентной заливкой
+            // Saved — толстая зелёная линия + мягкая вертикальная заливка
             LineChartBarData(
               spots: savedSpots,
               isCurved: false,
-              color: const Color(0xFF19D15C),
-              barWidth: 2.2,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [const Color(0xFF00BB22), const Color(0xFF00BB22)],
+              ),
+              barWidth: 3.4, // толще
               belowBarData: BarAreaData(
                 show: true,
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFF19D15C).withOpacity(.30),
-                    const Color(0xFF19D15C).withOpacity(.02),
+                    const Color(0xFF00BB22).withValues(alpha: 0.8),
+                    const Color(0xFF00BB22).withValues(alpha: 0.0),
                   ],
                 ),
               ),
               dotData: const FlDotData(show: false),
             ),
-            // Lost — красная тонкая линия без заливки
+            // Lost — тоже толстая линия + лёгкая «тень» (полупрозр. заливка)
             LineChartBarData(
               spots: lostSpots,
               isCurved: false,
-              color: const Color(0xFFFF3B30),
-              barWidth: 2.0,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [const Color(0xFFEE362B), const Color(0xFFEE362B)],
+              ),
+              barWidth: 3.0,
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFFEE362B).withValues(alpha: 0.8),
+                    const Color(0xFFEE362B).withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
               dotData: const FlDotData(show: false),
             ),
           ],
@@ -155,6 +172,7 @@ class ChartCard extends StatelessWidget {
       ),
     );
 
+    // Обложка карточки: слева фиксированная ось Y, справа — только график со скроллом
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
@@ -163,31 +181,100 @@ class ChartCard extends StatelessWidget {
       ),
       child: SizedBox(
         height: chartHeight,
-        // скроллится только диаграмма
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const ClampingScrollPhysics(),
-          child: chart,
+        child: Stack(
+          children: [
+            // 1) Скроллится только график (без левой оси)
+            Positioned.fill(
+              left: yAxisGutter, // оставляем место под фиксированную ось
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(),
+                child: chart,
+              ),
+            ),
+
+            // 2) Фиксированная ось Y с ценниками слева, поверх графика
+            Positioned.fill(
+              left: 0,
+              right: null,
+              child: _YAxisFixed(yMax: yMax, gutter: yAxisGutter),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// ————— helpers —————
+class _YAxisFixed extends StatelessWidget {
+  final int yMax;
+  final double gutter;
+  const _YAxisFixed({required this.yMax, required this.gutter});
 
-Widget _yLabel(String t) => Text(
-  t,
-  style: TextStyle(
-    color: Colors.white.withOpacity(.7),
-    fontSize: 12.sp,
-    fontWeight: FontWeight.w600,
+  @override
+  Widget build(BuildContext context) {
+    // должен совпадать с reservedSize из bottomTitles
+    const double bottomPad = 20.0; // место под месяцы
+    const double labelH = 14.0; // примерная высота текста
+
+    // те же «тики», что и на сетке — 6 линий
+    final List<double> ticks = yMax == 0
+        ? <double>[0, 100]
+        : List<double>.generate(6, (i) => (yMax / 5.0) * i);
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        final h = c.maxHeight;
+        final usable = h - bottomPad; // высота области графика
+        final range = (yMax == 0) ? 100.0 : yMax.toDouble();
+
+        return SizedBox(
+          width: gutter,
+          child: Stack(
+            children: [
+              for (final v in ticks)
+                Positioned(
+                  left: 0,
+                  // размещаем в пределах области графика (над месяцами)
+                  bottom:
+                      ((v / range) * (usable - labelH)).clamp(
+                        0.0,
+                        usable - labelH,
+                      ) +
+                      bottomPad,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 2),
+                    child: _yLabel('\$${v.toInt()}'),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Helpers
+
+Widget _yLabel(String t) => Padding(
+  padding: const EdgeInsets.only(left: 2),
+  child: Text(
+    t,
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 12.sp,
+      fontFamily: 'SF Pro',
+      fontWeight: FontWeight.w400,
+      letterSpacing: 0.24,
+    ),
+    textAlign: TextAlign.right,
   ),
 );
 
-// Округляем вверх до «красивого» значения (100/200/500/1000 …).
+// Округление вверх до «красивого» диапазона
 int _niceCeil(int v) {
-  if (v <= 0) return 100; // пустой график — шкала $0..$100 как в мокапе
+  if (v <= 0) return 100;
   const bases = [1, 2, 5];
   var scale = 1;
   while (true) {
@@ -199,14 +286,7 @@ int _niceCeil(int v) {
   }
 }
 
-// Шаг сетки: 20/50/100/200/500…
-double _gridStep(int maxVal) {
-  if (maxVal <= 100) return 20;
-  if (maxVal <= 200) return 40;
-  if (maxVal <= 500) return 100;
-  if (maxVal <= 1000) return 200;
-  return (maxVal / 5).roundToDouble();
-}
+// Шаг сетки
 
 String _monthShort(int m) => const [
   'Jan',

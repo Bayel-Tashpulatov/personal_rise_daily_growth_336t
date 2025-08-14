@@ -1,4 +1,4 @@
-const levelThresholds = [3, 5, 10, 200]; // 1→2, 2→3, 3→4, 4→5
+const levelThresholds = [3, 5, 7, 10]; // 1→2, 2→3, 3→4, 4→5
 
 class LevelState {
   final int level; // 1..5

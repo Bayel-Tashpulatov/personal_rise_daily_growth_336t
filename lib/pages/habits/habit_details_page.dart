@@ -1,5 +1,3 @@
-// lib/pages/habit_details_page.dart
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -61,100 +59,186 @@ class HabitDetailsPage extends StatelessWidget {
     final freq = _freqLabel(habit.frequencyIndex);
     final goal = _goalText(habit.goal);
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLevel1,
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
         backgroundColor: AppColors.backgroundLevel1,
-        elevation: 0,
-        leading: IconButton(
-          icon: Image.asset('assets/icons/back.png', width: 44.w, height: 44.w),
-          onPressed: () => Navigator.pop(context),
-        ),
-        centerTitle: true,
-        title: Text(
-          'Habit Details',
-          style: TextStyle(
-            color: AppColors.textlevel1,
-            fontSize: 18.sp,
-            fontFamily: 'SF Pro',
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.36,
-          ),
-        ),
-        actions: [
-          IconButton(
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundLevel1,
+          elevation: 0,
+          leading: IconButton(
             icon: Image.asset(
-              'assets/icons/edit.png',
+              'assets/icons/back.png',
               width: 44.w,
               height: 44.w,
             ),
-            onPressed: () async {
-              await showHabitEditorFlow(
-                context,
-                kind: habit.kind,
-                initialHabit: habit,
-                onDone: (draft) async {
-                  // сохранить правки
-                  final freqIndex = habit.kind == HabitKind.good
-                      ? indexFromFreq(draft.frequency) // твоя утилита
-                      : null;
-                  final updated = habit.copyWith(
-                    name: draft.name,
-                    description: draft.description,
-                    goal: draft.goal.isEmpty ? null : draft.goal,
-                    frequencyIndex: freqIndex,
-                  );
-                  await context.read<HabitsCubit>().updateHabit(updated);
-                },
-                onDelete: () async {
-                  // Удаляем из стора...
-                  await context.read<HabitsCubit>().deleteHabit(habit.id);
-                  // ...и закрываем страницу деталей (редактор уже сам закрылся)
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop();
-                  }
-                },
-              );
-            },
+            onPressed: () => Navigator.pop(context),
           ),
-        ],
-      ),
+          centerTitle: true,
+          title: Text(
+            'Habit Details',
+            style: TextStyle(
+              color: AppColors.textlevel1,
+              fontSize: 18.sp,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.36,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: Image.asset(
+                'assets/icons/edit.png',
+                width: 44.w,
+                height: 44.w,
+              ),
+              onPressed: () async {
+                await showHabitEditorFlow(
+                  context,
+                  kind: habit.kind,
+                  initialHabit: habit,
+                  onDone: (draft) async {
+                    // сохранить правки
+                    final freqIndex = habit.kind == HabitKind.good
+                        ? indexFromFreq(draft.frequency) // твоя утилита
+                        : null;
+                    final updated = habit.copyWith(
+                      name: draft.name,
+                      description: draft.description,
+                      goal: draft.goal.isEmpty ? null : draft.goal,
+                      frequencyIndex: freqIndex,
+                    );
+                    await context.read<HabitsCubit>().updateHabit(updated);
+                  },
+                  onDelete: () async {
+                    // Удаляем из стора...
+                    await context.read<HabitsCubit>().deleteHabit(habit.id);
+                    // ...и закрываем страницу деталей (редактор уже сам закрылся)
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                );
+              },
+            ),
+          ],
+        ),
 
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(12.w, 24.h, 12.w, 24.h),
-        children: [
-          // Header card: name + frequency + description
-          _card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  habit.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20.sp,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.40,
+        body: ListView(
+          padding: EdgeInsets.fromLTRB(12.w, 24.h, 12.w, 24.h),
+          children: [
+            // Header card: name + frequency + description
+            _card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    habit.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20.sp,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.40,
+                    ),
                   ),
-                ),
-                if (freq != null) ...[
+                  if (freq != null) ...[
+                    SizedBox(height: 8.h),
+                    RichText(
+                      text: TextSpan(
+                        text: 'Frequency: ',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.60),
+                          fontSize: 15.sp,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.30,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: freq,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15.sp,
+                              fontFamily: 'SF Pro',
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 0.30,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   SizedBox(height: 8.h),
-                  RichText(
-                    text: TextSpan(
-                      text: 'Frequency: ',
+                  Text(
+                    habit.description,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.sp,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w400,
+                      height: 1.33,
+                      letterSpacing: 0.30,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12.h),
+
+            // Goal card
+            if (goal != null)
+              _card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Image.asset(
+                          'assets/icons/goal.png',
+                          width: 24.w,
+                          height: 24.w,
+                        ),
+                        SizedBox(height: 4.h),
+                        Text(
+                          'Goal',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20.sp,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.40,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      goal,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.60),
+                        color: Colors.white,
                         fontSize: 15.sp,
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w400,
                         letterSpacing: 0.30,
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            if (goal != null) SizedBox(height: 4.h),
+
+            // Stats row
+            Row(
+              children: [
+                Expanded(
+                  child: _card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextSpan(
-                          text: freq,
+                        Text(
+                          'Current Streak',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15.sp,
@@ -163,189 +247,110 @@ class HabitDetailsPage extends StatelessWidget {
                             letterSpacing: 0.30,
                           ),
                         ),
+                        SizedBox(height: 4.h),
+                        Row(
+                          children: [
+                            Image.asset(
+                              isGood
+                                  ? 'assets/icons/fire.png'
+                                  : 'assets/icons/problem.png',
+                              width: 28.w,
+                              height: 28.w,
+                            ),
+                            SizedBox(width: 1.w),
+                            Text(
+                              '$streak',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24.sp,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.48,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                ],
-                SizedBox(height: 8.h),
-                Text(
-                  habit.description,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15.sp,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w400,
-                    height: 1.33,
-                    letterSpacing: 0.30,
+                ),
+                SizedBox(width: 4.w),
+                Expanded(
+                  child: _card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isGood ? 'Money Saved' : 'Money Lost',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.sp,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.30,
+                          ),
+                        ),
+                        SizedBox(height: 4.h),
+                        Text(
+                          '\$${NumberFormat('#,###').format(money)}',
+                          style: TextStyle(
+                            color: moneyColor,
+                            fontSize: 24.sp,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.48,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          SizedBox(height: 12.h),
+            SizedBox(height: 12.h),
 
-          // Goal card
-          if (goal != null)
-            _card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Image.asset(
-                        'assets/icons/goal.png',
-                        width: 24.w,
-                        height: 24.w,
-                      ),
-                      SizedBox(height: 4.h),
-                      Text(
-                        'Goal',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20.sp,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.40,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    goal,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15.sp,
-                      fontFamily: 'SF Pro',
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.30,
-                    ),
-                  ),
-                ],
+            Text(
+              hasToday
+                  ? (isGood ? 'Already marked today' : 'Already recorded today')
+                  : (isGood ? 'Not yet marked today' : 'No slips today'),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15.sp,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.30,
               ),
             ),
-          if (goal != null) SizedBox(height: 4.h),
+            SizedBox(height: 6.h),
+            _markButton(
+              isGood: isGood,
+              enabled: !hasToday,
+              onTap: () async {
+                final res = await showLogEditorSheet(context, isGood: isGood);
+                if (res == null) return;
 
-          // Stats row
-          Row(
-            children: [
-              Expanded(
-                child: _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Current Streak',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15.sp,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.30,
-                        ),
-                      ),
-                      SizedBox(height: 4.h),
-                      Row(
-                        children: [
-                          Image.asset(
-                            isGood
-                                ? 'assets/icons/fire.png'
-                                : 'assets/icons/problem.png',
-                            width: 28.w,
-                            height: 28.w,
-                          ),
-                          SizedBox(width: 1.w),
-                          Text(
-                            '$streak',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24.sp,
-                              fontFamily: 'SF Pro',
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.48,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(width: 4.w),
-              Expanded(
-                child: _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isGood ? 'Money Saved' : 'Money Lost',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15.sp,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.30,
-                        ),
-                      ),
-                      SizedBox(height: 4.h),
-                      Text(
-                        '\$${NumberFormat('#,###').format(money)}',
-                        style: TextStyle(
-                          color: moneyColor,
-                          fontSize: 24.sp,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.48,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-
-          Text(
-            hasToday
-                ? (isGood ? 'Already marked today' : 'Already recorded today')
-                : (isGood ? 'Not yet marked today' : 'No slips today'),
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 15.sp,
-              fontFamily: 'SF Pro',
-              fontWeight: FontWeight.w400,
-              letterSpacing: 0.30,
+                if (isGood) {
+                  await context.read<HabitsCubit>().markGoodDone(
+                    habitId: habit.id,
+                    amount: res.amount,
+                    note: res.note,
+                  );
+                } else {
+                  await context.read<HabitsCubit>().markBadSlip(
+                    habitId: habit.id,
+                    amountLost: res.amount,
+                    note: res.note,
+                  );
+                }
+              },
             ),
-          ),
-          SizedBox(height: 6.h),
-          _markButton(
-            isGood: isGood,
-            enabled: !hasToday,
-            onTap: () async {
-              final res = await showLogEditorSheet(context, isGood: isGood);
-              if (res == null) return;
 
-              if (isGood) {
-                await context.read<HabitsCubit>().markGoodDone(
-                  habitId: habit.id,
-                  amount: res.amount,
-                  note: res.note,
-                );
-              } else {
-                await context.read<HabitsCubit>().markBadSlip(
-                  habitId: habit.id,
-                  amountLost: res.amount,
-                  note: res.note,
-                );
-              }
-            },
-          ),
+            SizedBox(height: 12.h),
 
-          SizedBox(height: 12.h),
-
-          // History
-          ...logs.map((l) => _historyTile(context, l, isGood: isGood)),
-        ],
+            // History
+            ...logs.map((l) => _historyTile(context, l, isGood: isGood)),
+          ],
+        ),
       ),
     );
   }
@@ -447,7 +452,7 @@ class HabitDetailsPage extends StatelessWidget {
 
     return InkWell(
       onTap: () async {
-        final edited = await showLogEditorSheet( 
+        final edited = await showLogEditorSheet(
           context,
           isGood: isPositive,
           isEdit: true,
