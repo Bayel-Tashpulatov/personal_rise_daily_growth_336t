@@ -107,30 +107,48 @@ class HabitsCubit extends Cubit<HabitsState> {
     final all = state.logs.where((l) => l.habitId == habitId).toList()
       ..sort((a, b) => _d(b.date).compareTo(_d(a.date)));
 
-    final today = _d(DateTime.now());
-    bool hasToday = all.any(
-      (l) => _isSameDay(l.date, today) && (good ? l.amount > 0 : l.amount < 0),
-    );
+    if (all.isEmpty) return 0;
 
-    DateTime cursor = hasToday
-        ? today
-        : today.subtract(const Duration(days: 1));
+    DateTime d(DateTime x) => DateTime(x.year, x.month, x.day);
+    final today = d(DateTime.now());
+
+    final daysGood = all
+        .where((l) => l.amount > 0)
+        .map((l) => _d(l.date))
+        .toSet();
+    final daysSlip = all
+        .where((l) => l.amount < 0)
+        .map((l) => _d(l.date))
+        .toSet();
+
+    final earliest = _d(all.last.date);
 
     int streak = 0;
-    while (true) {
-      if (good) {
-        final done = all.any((l) => _isSameDay(l.date, cursor) && l.amount > 0);
-        if (!done) break;
+    DateTime cursor;
+
+    if (good) {
+      cursor = daysGood.contains(today)
+          ? today
+          : today.subtract(const Duration(days: 1));
+      while (!cursor.isBefore(earliest)) {
+        if (!daysGood.contains(cursor)) break;
         streak++;
-      } else {
-        final slipped = all.any(
-          (l) => _isSameDay(l.date, cursor) && l.amount < 0,
-        );
-        if (slipped) break;
-        streak++;
+        cursor = cursor.subtract(const Duration(days: 1));
       }
-      cursor = cursor.subtract(const Duration(days: 1));
+    } else {
+      cursor = daysSlip.contains(today)
+          ? today.subtract(const Duration(days: 1))
+          : today;
+
+      if (all.isEmpty) return 0;
+
+      while (!cursor.isBefore(earliest)) {
+        if (daysSlip.contains(cursor)) break;
+        streak++;
+        cursor = cursor.subtract(const Duration(days: 1));
+      }
     }
+
     return streak;
   }
 

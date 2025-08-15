@@ -83,7 +83,7 @@ class _GlobalToastsState extends State<GlobalToasts> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _showToast(
                 _ToastSurface(
-                  height: 100.h,
+                  height: 120.h,
                   leading: Image.asset(
                     'assets/icons/star.png',
                     width: 24.w,

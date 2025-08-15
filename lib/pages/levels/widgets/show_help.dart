@@ -1,40 +1,26 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
-import 'dart:ui' as ui;
 
 OverlayEntry? _levelHelpEntry;
-
-Future<void> showLevelHelp(
+void showLevelHelp(
   BuildContext context,
   LayerLink link, {
   required GlobalKey bgKey,
   double anchorSize = 44,
   Widget? content,
-}) async {
+}) {
   _levelHelpEntry?.remove();
   _levelHelpEntry = null;
 
-  final box = bgKey.currentContext?.findRenderObject() as RenderBox?;
-  final boundary =
-      bgKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-  if (box == null || boundary == null) return;
-
-  final bgOffset = box.localToGlobal(Offset.zero);
-  final bgSize = box.size;
-
-  final dpr = MediaQuery.of(context).devicePixelRatio;
-  ui.Image? shot;
-  try {
-    shot = await boundary.toImage(pixelRatio: dpr);
-  } catch (_) {}
+  final bgBox = bgKey.currentContext?.findRenderObject() as RenderBox?;
+  final bgOffset = bgBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+  final bgSize = bgBox?.size ?? Size.zero;
 
   void hide() {
     _levelHelpEntry?.remove();
     _levelHelpEntry = null;
-    shot?.dispose();
   }
 
   final screenW = MediaQuery.of(context).size.width;
@@ -42,8 +28,8 @@ Future<void> showLevelHelp(
 
   var bubbleOffset = Offset(-(maxBubbleW - anchorSize), anchorSize + 8);
 
-  final anchorTopLeft = link.leader?.offset ?? Offset.zero;
-  final bubbleLeft = anchorTopLeft.dx + bubbleOffset.dx;
+  final anchorTopLeftGlobal = link.leader?.offset ?? Offset.zero;
+  final bubbleLeft = anchorTopLeftGlobal.dx + bubbleOffset.dx;
   final bubbleRight = bubbleLeft + maxBubbleW;
   if (bubbleLeft < 12) {
     bubbleOffset = bubbleOffset.translate(12 - bubbleLeft, 0);
@@ -51,6 +37,10 @@ Future<void> showLevelHelp(
   if (bubbleRight > screenW - 12) {
     bubbleOffset = bubbleOffset.translate((screenW - 12) - bubbleRight, 0);
   }
+
+  final anchorCenterGlobal =
+      anchorTopLeftGlobal + Offset(anchorSize / 2, anchorSize / 2);
+  final anchorCenterInBg = anchorCenterGlobal - bgOffset;
 
   _levelHelpEntry = OverlayEntry(
     builder: (ctx) => Stack(
@@ -63,19 +53,12 @@ Future<void> showLevelHelp(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: hide,
-            child: shot == null
-                ? Container(color: Colors.black.withOpacity(0.25))
-                : Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ImageFiltered(
-                        imageFilter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: RawImage(image: shot, fit: BoxFit.cover),
-                      ),
-
-                      Container(color: Colors.black.withOpacity(0.25)),
-                    ],
-                  ),
+            child: ClipPath(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: const SizedBox.expand(),
+              ),
+            ),
           ),
         ),
 
@@ -100,7 +83,6 @@ Future<void> showLevelHelp(
   );
 
   Overlay.of(context, rootOverlay: true).insert(_levelHelpEntry!);
-
   Future.delayed(const Duration(seconds: 6), () {
     if (_levelHelpEntry != null) hide();
   });

@@ -94,16 +94,13 @@ class _LevelScreenState extends State<LevelScreen> {
         children: [
           Stack(
             children: [
-              RepaintBoundary(
+              SizedBox(
                 key: _bgKey,
-                child: SizedBox(
-                  key: _bgKey,
-                  height: 560.h,
-                  width: double.infinity,
-                  child: Image.asset(
-                    'assets/images/level_${s.level}.png',
-                    fit: BoxFit.cover,
-                  ),
+                height: 560.h,
+                width: double.infinity,
+                child: Image.asset(
+                  'assets/images/level_${s.level}.png',
+                  fit: BoxFit.cover,
                 ),
               ),
 
@@ -131,13 +128,7 @@ class _LevelScreenState extends State<LevelScreen> {
                         minHeight: 36,
                       )
                     else
-                      Row(
-                        children: [
-                          _chip('Max Level!'),
-                          const SizedBox(width: 8),
-                          _chip('Your Score: ${s.maxScore}'),
-                        ],
-                      ),
+                      _maxLevelBanner(s.maxScore),
                     SizedBox(height: 10.h),
                     Text(
                       _levelDescription(s.level),
@@ -267,17 +258,41 @@ class _LevelScreenState extends State<LevelScreen> {
     );
   }
 
-  Widget _chip(String text) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: const Color(0xFF0062FF),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-    ),
-  );
+  Widget _maxLevelBanner(int score) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: AppColors.primaryAccent,
+        borderRadius: BorderRadius.circular(22.r),
+      ),
+      child: Row(
+        children: [
+          Text(
+            'Max Level!',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15.sp,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.30,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            'Your Score: $score',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15.sp,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.30,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _achievementPreview(
     String title,

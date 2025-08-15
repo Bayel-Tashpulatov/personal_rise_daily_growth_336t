@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/adapters.dart';
@@ -21,7 +22,10 @@ void main() async {
   await Hive.openBox<Habit>('habits');
   await Hive.openBox<HabitLog>('habit_logs');
   await Hive.openBox('prefs');
-
+  assert(() {
+    debugPaintBaselinesEnabled = false;
+    return true;
+  }());
   runApp(const PersonalRiseDailyGrowth());
 }
 
@@ -36,6 +40,7 @@ class PersonalRiseDailyGrowth extends StatelessWidget {
       designSize: const Size(375, 812),
       minTextAdapt: true,
       splitScreenMode: true,
+
       builder: (context, child) {
         return MultiBlocProvider(
           providers: [
