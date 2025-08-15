@@ -1,10 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
-/// Переключатель Positive / Negative
 class SegmentedHabit extends StatelessWidget {
   final HabitKind tab;
   final ValueChanged<HabitKind> onChanged;

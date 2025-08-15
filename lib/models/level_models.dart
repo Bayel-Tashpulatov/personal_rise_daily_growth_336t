@@ -1,9 +1,9 @@
-const levelThresholds = [3, 5, 7, 10]; // 1→2, 2→3, 3→4, 4→5
+const levelThresholds = [50, 100, 150, 200];
 
 class LevelState {
-  final int level; // 1..5
-  final int points; // текущие очки (уровни 1–4)
-  final int maxScore; // накопленные сверх 5 уровня
+  final int level;
+  final int points;
+  final int maxScore;
   const LevelState({
     required this.level,
     required this.points,

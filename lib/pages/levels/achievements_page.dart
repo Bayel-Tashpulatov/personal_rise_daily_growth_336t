@@ -1,4 +1,3 @@
-// pages/achievements_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -73,7 +72,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
             ),
           ),
 
-          // список ачивок
           if (list.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
@@ -113,9 +111,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // картинка гарантированно влезает
                         SizedBox(
-                          height: 72.h, // было 96.h — жирновато
+                          height: 72.h,
                           child: Image.asset(
                             active
                                 ? 'assets/images/cup_blue.png'
@@ -156,12 +153,11 @@ class _AchievementsPageState extends State<AchievementsPage> {
                   );
                 }, childCount: list.length),
 
-                // 👉 фиксируем высоту плитки, а не aspect ratio
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
                   crossAxisSpacing: 10.w,
                   mainAxisSpacing: 10.h,
-                  mainAxisExtent: 160.h, // подгони 150–176.h под макет/шрифты
+                  mainAxisExtent: 160.h,
                 ),
               ),
             ),

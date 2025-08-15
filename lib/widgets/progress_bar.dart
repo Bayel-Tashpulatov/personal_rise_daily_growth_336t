@@ -1,4 +1,3 @@
-// widgets/progress_bar.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';

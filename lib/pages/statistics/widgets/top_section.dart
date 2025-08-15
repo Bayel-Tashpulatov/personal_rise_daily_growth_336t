@@ -1,4 +1,3 @@
-// lib/features/statistics/presentation/widgets/top_section.dart
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -28,7 +27,6 @@ class _TopSectionState extends State<TopSection> {
   late final PageController _pc;
   int _page = 0;
 
-  // минимальная/макс. высоты карточки
   double _cardHeight = 110.h;
   final Map<int, double> _heights = {};
 
@@ -37,7 +35,6 @@ class _TopSectionState extends State<TopSection> {
     super.initState();
     _pc = PageController();
 
-    // Посчитать высоту для первой страницы после первого кадра
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.items.isNotEmpty) {
         final w = context.size?.width ?? MediaQuery.of(context).size.width;
@@ -54,13 +51,11 @@ class _TopSectionState extends State<TopSection> {
     super.dispose();
   }
 
-  // ── РАСЧЁТ ВЫСОТЫ ────────────────────────────────────────────────────────────
   double _calcSlideHeight(
     BuildContext context,
     ({Habit habit, int total, String periodLabel}) data,
     double cardWidth,
   ) {
-    // внутренние отступы слайда: Padding(horizontal: 12, vertical: 8)
     final horizontal = 12.w * 2;
     final vertical = 8.h * 2;
 
@@ -104,24 +99,21 @@ class _TopSectionState extends State<TopSection> {
       return tp.size.height;
     }
 
-    // блоки высоты: имя (до 2 строк), разделитель, описание (до 5 строк), нижняя строка (period + amount)
     final nameH = measure(data.habit.name, nameStyle, maxLines: 2);
     final dividerH = 1.h;
-    final gap1 = 10.h; // между именем и divider
-    final gap2 = 8.h; // между divider и описанием
-    final gap3 = 2.h; // маленький отступ до bottom row
+    final gap1 = 10.h;
+    final gap2 = 8.h;
+    final gap3 = 2.h;
     final descH = measure(data.habit.description, descStyle, maxLines: 5);
 
-    // нижняя строка: примерно max высоты из подписей
     final bottomRowH = math.max(
-      measure('For Last Month:', periodStyle), // текст не важен — берём стиль
-      measure('\$999999', amountStyle), // грубая оценка высоты строки
+      measure('For Last Month:', periodStyle),
+      measure('\$999999', amountStyle),
     );
 
     final contentH = nameH + gap1 + dividerH + gap2 + descH + gap3 + bottomRowH;
-    final totalH = contentH + vertical; // плюс внутренние паддинги слайда
+    final totalH = contentH + vertical;
 
-    // итоговая высота карточки с ограничениями
     return totalH.clamp(110.h, 280.h);
   }
 
@@ -171,7 +163,7 @@ class _TopSectionState extends State<TopSection> {
                     controller: _pc,
                     onPageChanged: (i) {
                       setState(() => _page = i);
-                      // если уже считали — берём из кэша, иначе — считаем сейчас
+
                       final h =
                           _heights[i] ??
                           _calcSlideHeight(context, widget.items[i], cardW);

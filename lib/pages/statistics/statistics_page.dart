@@ -184,39 +184,40 @@ class _StatisticsPageState extends State<StatisticsPage> {
               ],
             ),
 
-            SizedBox(height: 16.h),
-            TopSection(
-              title: 'Top Positive Habits',
-              positive: true,
-              items: topGood
-                  .map(
-                    (e) => (
-                      habit: e.habit,
-                      total: e.total,
-                      periodLabel: 'For Last ${e.monthsCovered} Month:',
-                    ),
-                  )
-                  .toList(),
-              periodLabel: goodLabel,
-            ),
-            SizedBox(height: 24.h),
-            TopSection(
-              title: 'Top Negative Habits',
-              positive: false,
-              items: topBad
-                  .map(
-                    (e) => (
-                      habit: e.habit,
-                      total: e.total,
-                      periodLabel: 'For Last ${e.monthsCovered} Month:',
-                    ),
-                  )
-                  .toList(),
-              periodLabel: badLabel,
-            ),
-
             if (hc.state.habits.isEmpty) ...[
-              SizedBox(height: 70.h),
+              SizedBox(height: 16.h),
+
+              TopSection(
+                title: 'Top Positive Habits',
+                positive: true,
+                items: topGood
+                    .map(
+                      (e) => (
+                        habit: e.habit,
+                        total: e.total,
+                        periodLabel: 'For Last ${e.monthsCovered} Month:',
+                      ),
+                    )
+                    .toList(),
+                periodLabel: goodLabel,
+              ),
+              SizedBox(height: 24.h),
+              TopSection(
+                title: 'Top Negative Habits',
+                positive: false,
+                items: topBad
+                    .map(
+                      (e) => (
+                        habit: e.habit,
+                        total: e.total,
+                        periodLabel: 'For Last ${e.monthsCovered} Month:',
+                      ),
+                    )
+                    .toList(),
+                periodLabel: badLabel,
+              ),
+            ] else if (hc.state.habits.isNotEmpty) ...[
+              SizedBox(height: 90.h),
               Center(
                 child: Text(
                   'Add habbits to see more statistics!',

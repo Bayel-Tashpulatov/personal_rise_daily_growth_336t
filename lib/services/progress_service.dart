@@ -1,14 +1,13 @@
-// lib/services/progress_service.dart
 import 'package:collection/collection.dart';
 import 'package:personal_rise_daily_growth_336t/models/level_models.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
 import 'package:personal_rise_daily_growth_336t/models/achievement_models.dart';
 
 class ProgressSnapshot {
-  final int totalSaved; // сумма всех +amount
-  final int totalWasted; // сумма модулей всех -amount
-  final int cleanDays; // дней, где есть ≥1 good и 0 bad
-  final int goodStreak; // подряд дней до сегодня с ≥1 good (не учитываем bad)
+  final int totalSaved;
+  final int totalWasted;
+  final int cleanDays;
+  final int goodStreak;
   final List<AchievementProgress> achievements;
 
   const ProgressSnapshot({
@@ -20,16 +19,10 @@ class ProgressSnapshot {
   });
 }
 
-/// Нормы из ТЗ:
-/// - good лог = +1 очко
-/// - bad лог = -3 очка
-/// - Level 1..4: при достижении порога (50/100/150/200) -> level+1 и points сбрасываются в 0
-/// - Level 5: финальный, очки дальше копятся в maxScore (прогресс-бар показывает накопление сверху)
 class ProgressService {
-  static const int goodPoint = 1;
+  static const int goodPoint = 1000;
   static const int badPoint = -3;
 
-  /// Пересчёт очков/уровня при одном логе.
   static LevelState applyPoints(LevelState prev, HabitLog log) {
     final delta = log.amount >= 0 ? goodPoint : badPoint;
 
@@ -39,10 +32,8 @@ class ProgressService {
 
       final target = prev.nextTarget!;
       if (points >= target) {
-        // апгрейд уровня, сбрасываем очки
         final nextLevel = (prev.level + 1).clamp(1, 5);
         if (nextLevel == 5) {
-          // на входе была 4ка и достигли 5
           return LevelState(level: 5, points: 0, maxScore: 0);
         }
         return LevelState(level: nextLevel, points: 0, maxScore: 0);
@@ -53,19 +44,16 @@ class ProgressService {
         maxScore: prev.maxScore,
       );
     } else {
-      // финальный уровень — копим в maxScore
       int score = prev.maxScore + delta;
       if (score < 0) score = 0;
       return LevelState(level: 5, points: 0, maxScore: score);
     }
   }
 
-  /// Строим снимок прогресса для ачивок/статистики.
   static ProgressSnapshot buildSnapshot({
     required LevelState level,
     required List<HabitLog> logs,
   }) {
-    // Суммы
     final totalSaved = logs
         .where((l) => l.amount > 0)
         .fold<int>(0, (s, l) => s + l.amount);
@@ -73,7 +61,6 @@ class ProgressService {
         .where((l) => l.amount < 0)
         .fold<int>(0, (s, l) => s + (-l.amount));
 
-    // Чистые дни: день считается чистым, если в нём есть ≥1 good и НИ ОДНОГО bad
     final byDay = groupBy(
       logs,
       (HabitLog l) => DateTime(l.date.year, l.date.month, l.date.day),
@@ -84,7 +71,6 @@ class ProgressService {
       return hasGood && !hasBad;
     }).length;
 
-    // Глобальный good-streak: подряд до сегодня дни, где есть ≥1 good (bad не ломает streak — по ТЗ streak=«выполняет привычки»)
     int goodStreak = 0;
     final goodDays = byDay.entries
         .where((e) => e.value.any((l) => l.amount > 0))
@@ -100,7 +86,6 @@ class ProgressService {
       cursor = cursor.subtract(const Duration(days: 1));
     }
 
-    // Ачивки — определяем список и текущие значения
     final defs = _allAchievementDefs();
     final List<AchievementProgress> progress = defs.map((d) {
       int current;
@@ -134,9 +119,7 @@ class ProgressService {
     );
   }
 
-  /// Полный список ачивок из ТЗ
   static List<AchievementDef> _allAchievementDefs() => const [
-    // 1) По дням выполнения (стрик)
     AchievementDef(
       id: 'streak_3',
       title: '3-Day Streak',
@@ -187,7 +170,6 @@ class ProgressService {
       target: 365,
     ),
 
-    // 2) По сэкономленным деньгам
     AchievementDef(
       id: 'saved_10',
       title: 'Saved \$10',
@@ -238,7 +220,6 @@ class ProgressService {
       target: 5000,
     ),
 
-    // 3) По потраченным деньгам (вредные привычки)
     AchievementDef(
       id: 'wasted_50',
       title: 'Wasted \$50',
@@ -254,7 +235,6 @@ class ProgressService {
       target: 200,
     ),
 
-    // 4) Чистые дни
     AchievementDef(
       id: 'clean_1',
       title: '1 Clean Day',

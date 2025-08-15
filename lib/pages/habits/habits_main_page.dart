@@ -1,4 +1,3 @@
-// pages/habits_main_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,7 +20,7 @@ class HabitsMainPage extends StatefulWidget {
 }
 
 class _HabitsMainPageState extends State<HabitsMainPage> {
-  HabitKind _tab = HabitKind.good; // Positive / Negative
+  HabitKind _tab = HabitKind.good;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +96,7 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
                           context.read<HabitsCubit>().addBad(
                             name: draft.name.trim(),
                             description: draft.description.trim(),
-                            goal: draft.goal.trim(), // ⭐ добавили
+                            goal: draft.goal.trim(),
                           );
                         },
                       );
@@ -144,8 +143,6 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
     );
   }
 
-  // ===== helpers: расчёты из логов =====
-
   int _todayPercentFor(
     List<Habit> habits,
     List<HabitLog> logs, {
@@ -159,7 +156,6 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
 
     final habitIds = habits.map((h) => h.id).toSet();
 
-    // сколько разных привычек из этого таба были «триггернуты» сегодня
     final triggeredIds = logs
         .where(
           (l) =>
@@ -186,73 +182,69 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
       final d = DateUtils.dateOnly(l.date);
       if (d.isBefore(from) || d.isAfter(DateUtils.dateOnly(now))) continue;
       if (positive && l.amount > 0) sum += l.amount;
-      if (!positive && l.amount < 0) sum += -l.amount; // берём модуль для Lost
+      if (!positive && l.amount < 0) sum += -l.amount;
     }
     return sum;
   }
 
   List<HabitVm> _buildVms(List<Habit> habits, List<HabitLog> logs) {
-  return habits.map((h) {
-    final hLogs = logs.where((l) => l.habitId == h.id);
-    final moneyAbs = hLogs.fold<int>(0, (s, l) => s + l.amount).abs();
+    return habits.map((h) {
+      final hLogs = logs.where((l) => l.habitId == h.id);
+      final moneyAbs = hLogs.fold<int>(0, (s, l) => s + l.amount).abs();
 
-    final streak = (h.kind == HabitKind.good)
-        ? _streakGood(h.id, logs)
-        : _streakBadClean(h.id, logs);
+      final streak = (h.kind == HabitKind.good)
+          ? _streakGood(h.id, logs)
+          : _streakBadClean(h.id, logs);
 
-    return HabitVm(
-      id: h.id,
-      title: h.name,
-      subtitle: h.description,
-      kind: h.kind,
-      streak: streak,          // <-- ВАЖНО
-      money: moneyAbs,
-    );
-  }).toList();
-}
-
-int _streakGood(String habitId, Iterable<HabitLog> logs) {
-  final days = logs
-      .where((l) => l.habitId == habitId && l.amount > 0)
-      .map((l) => DateUtils.dateOnly(l.date))
-      .toSet();
-
-  var day = DateUtils.dateOnly(DateTime.now());
-  int streak = 0;
-  while (days.contains(day)) {
-    streak++;
-    day = day.subtract(const Duration(days: 1));
+      return HabitVm(
+        id: h.id,
+        title: h.name,
+        subtitle: h.description,
+        kind: h.kind,
+        streak: streak,
+        money: moneyAbs,
+      );
+    }).toList();
   }
-  return streak;
-}
 
-int _streakBadClean(String habitId, Iterable<HabitLog> logs) {
-  // дни, когда был “срыв” по этой вредной привычке
-  final slipDays = logs
-      .where((l) => l.habitId == habitId && l.amount < 0)
-      .map((l) => DateUtils.dateOnly(l.date))
-      .toSet();
+  int _streakGood(String habitId, Iterable<HabitLog> logs) {
+    final days = logs
+        .where((l) => l.habitId == habitId && l.amount > 0)
+        .map((l) => DateUtils.dateOnly(l.date))
+        .toSet();
 
-  var day = DateUtils.dateOnly(DateTime.now());
-  int streak = 0;
-  // считаем, пока подряд нет срывов
-  while (!slipDays.contains(day)) {
-    streak++;
-    day = day.subtract(const Duration(days: 1));
+    var day = DateUtils.dateOnly(DateTime.now());
+    int streak = 0;
+    while (days.contains(day)) {
+      streak++;
+      day = day.subtract(const Duration(days: 1));
+    }
+    return streak;
   }
-  return streak;
+
+  int _streakBadClean(String habitId, Iterable<HabitLog> logs) {
+    final slipDays = logs
+        .where((l) => l.habitId == habitId && l.amount < 0)
+        .map((l) => DateUtils.dateOnly(l.date))
+        .toSet();
+
+    var day = DateUtils.dateOnly(DateTime.now());
+    int streak = 0;
+
+    while (!slipDays.contains(day)) {
+      streak++;
+      day = day.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
 }
 
-  
-}
-
-/// Лёгкая VM для карточки
 class HabitVm {
   final String id;
   final String title;
   final String subtitle;
   final HabitKind kind;
-    final int streak;
+  final int streak;
   final int money;
   const HabitVm({
     required this.id,
@@ -261,6 +253,5 @@ class HabitVm {
     required this.kind,
     required this.streak,
     required this.money,
-
   });
 }

@@ -17,7 +17,6 @@ class HabitsState {
       habits.where((h) => h.kind == HabitKind.good).toList();
   List<Habit> get bad => habits.where((h) => h.kind == HabitKind.bad).toList();
 
-  // ==== агрегаты для UI “Habits Main” ====
   int get todayGoodPercent {
     final today = DateTime.now();
     final todayLogs = logs.where(
@@ -26,7 +25,7 @@ class HabitsState {
           l.date.month == today.month &&
           l.date.day == today.day,
     );
-    // простая модель: % = min(100, countGood * 10).
+
     final goodCount = todayLogs.where((l) => l.amount > 0).length;
     return (goodCount * 10).clamp(0, 100);
   }
@@ -55,7 +54,6 @@ class HabitsState {
         .fold(0, (s, l) => s + (-l.amount));
   }
 
-  // Вспомогалка
   static bool _isBefore(DateTime a, DateTime b) {
     final da = DateTime(a.year, a.month, a.day);
     final db = DateTime(b.year, b.month, b.day);
@@ -77,7 +75,6 @@ class HabitsCubit extends Cubit<HabitsState> {
     _habitBox = Hive.box<Habit>('habits');
     _logBox = Hive.box<HabitLog>('habit_logs');
 
-    // начальная загрузка
     emit(
       HabitsState(
         habits: _habitBox.values.toList(),
@@ -85,7 +82,6 @@ class HabitsCubit extends Cubit<HabitsState> {
       ),
     );
 
-    // подписки
     _hSub = _habitBox.watch().listen((_) {
       emit(state.copyWith(habits: _habitBox.values.toList()));
     });
@@ -103,14 +99,46 @@ class HabitsCubit extends Cubit<HabitsState> {
     return super.close();
   }
 
-  // ===== CRUD привычек =====
+  DateTime _d(DateTime x) => DateTime(x.year, x.month, x.day);
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-  /// Добавить хорошую привычку
+  int currentStreakForHabit(String habitId, {required bool good}) {
+    final all = state.logs.where((l) => l.habitId == habitId).toList()
+      ..sort((a, b) => _d(b.date).compareTo(_d(a.date)));
+
+    final today = _d(DateTime.now());
+    bool hasToday = all.any(
+      (l) => _isSameDay(l.date, today) && (good ? l.amount > 0 : l.amount < 0),
+    );
+
+    DateTime cursor = hasToday
+        ? today
+        : today.subtract(const Duration(days: 1));
+
+    int streak = 0;
+    while (true) {
+      if (good) {
+        final done = all.any((l) => _isSameDay(l.date, cursor) && l.amount > 0);
+        if (!done) break;
+        streak++;
+      } else {
+        final slipped = all.any(
+          (l) => _isSameDay(l.date, cursor) && l.amount < 0,
+        );
+        if (slipped) break;
+        streak++;
+      }
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
   Future<void> addGood({
     required String name,
     required String description,
     required String goal,
-    required HabitFrequency? frequency, // из UI
+    required HabitFrequency? frequency,
   }) async {
     final freqIndex = switch (frequency) {
       HabitFrequency.daily => 0,
@@ -131,7 +159,6 @@ class HabitsCubit extends Cubit<HabitsState> {
     await _habitBox.put(h.id, h);
   }
 
-  /// Добавить плохую привычку
   Future<void> addBad({
     required String name,
     required String description,
@@ -143,7 +170,7 @@ class HabitsCubit extends Cubit<HabitsState> {
       description: description,
       kind: HabitKind.bad,
       goal: goal.isEmpty ? null : goal,
-      frequencyIndex: null, // не используется для bad
+      frequencyIndex: null,
     );
     await _habitBox.put(h.id, h);
   }
@@ -152,14 +179,12 @@ class HabitsCubit extends Cubit<HabitsState> {
 
   Future<void> deleteHabit(String id) async {
     await _habitBox.delete(id);
-    // удаляем связанные логи
+
     final forDelete = _logBox.values.where((l) => l.habitId == id).toList();
     for (final l in forDelete) {
       await _logBox.delete(l.id);
     }
   }
-
-  // ===== ЛОГИ =====
 
   Future<HabitLog> addLogRaw({
     required String habitId,
@@ -176,7 +201,6 @@ class HabitsCubit extends Cubit<HabitsState> {
     );
     await _logBox.put(log.id, log);
 
-    // 🔑 вот это нужно для Level Up тоста
     levelCubit.applyLog(log);
 
     return log;
@@ -219,7 +243,6 @@ class HabitsCubit extends Cubit<HabitsState> {
 
   Future<void> deleteLog(String id) async => _logBox.delete(id);
 
-  // Для деталей привычки
   List<HabitLog> entriesOf(String habitId) =>
       state.logs.where((l) => l.habitId == habitId).toList()
         ..sort((a, b) => b.date.compareTo(a.date));

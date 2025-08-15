@@ -1,13 +1,15 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
-/// Кнопка Add New …
 class AddHabitButton extends StatelessWidget {
   final bool positive;
   final VoidCallback onTap;
-  const AddHabitButton({super.key, required this.positive, required this.onTap});
+  const AddHabitButton({
+    super.key,
+    required this.positive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

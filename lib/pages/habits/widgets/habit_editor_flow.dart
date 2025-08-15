@@ -10,7 +10,7 @@ class HabitEditorDraft {
   String name = '';
   String description = '';
   String goal = '';
-  HabitFrequency? frequency; // используется только для good
+  HabitFrequency? frequency;
 
   bool get isDirty =>
       name.trim().isNotEmpty ||
@@ -21,13 +21,11 @@ class HabitEditorDraft {
 
 Route<T> _bottomToCenterRoute<T>(Widget child) => PageRouteBuilder<T>(
   opaque: false,
-  barrierDismissible: false, // вне окна не закрываем, чтобы не потерять данные
-  barrierColor: Colors.black.withOpacity(
-    0.001,
-  ), // тонкий барьер, блокирует тапы
+  barrierDismissible: false,
+  barrierColor: Colors.black.withOpacity(0.001),
   transitionDuration: const Duration(milliseconds: 320),
   reverseTransitionDuration: const Duration(milliseconds: 260),
-  pageBuilder: (_, _, _) => child, // сам контент
+  pageBuilder: (_, _, _) => child,
   transitionsBuilder: (_, animation, _, child) {
     final curved = CurvedAnimation(
       parent: animation,
@@ -35,7 +33,6 @@ Route<T> _bottomToCenterRoute<T>(Widget child) => PageRouteBuilder<T>(
       reverseCurve: Curves.easeInCubic,
     );
 
-    // фон: фейд + блюр
     final backdrop = FadeTransition(
       opacity: curved,
       child: BackdropFilter(
@@ -47,7 +44,6 @@ Route<T> _bottomToCenterRoute<T>(Widget child) => PageRouteBuilder<T>(
       ),
     );
 
-    // окно: снизу -> центр + лёгкий скейл
     final panel = Align(
       alignment: Alignment.center,
       child: SlideTransition(
@@ -66,11 +62,10 @@ Route<T> _bottomToCenterRoute<T>(Widget child) => PageRouteBuilder<T>(
   },
 );
 
-/// Удобные врапперы
 Future<void> showAddGoodHabitFlow(
   BuildContext context, {
   required void Function(HabitEditorDraft) onDone,
-  Habit? initialHabit, // если не null — режим редактирования
+  Habit? initialHabit,
   VoidCallback? onDelete,
 }) async => showHabitEditorFlow(
   context,
@@ -93,7 +88,6 @@ Future<void> showAddBadHabitFlow(
   onDelete: onDelete,
 );
 
-/// Универсальный flow (good/bad + create/edit)
 Future<void> showHabitEditorFlow(
   BuildContext context, {
   required HabitKind kind,
@@ -139,10 +133,9 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
   final _descCtrl = TextEditingController();
   final _goalCtrl = TextEditingController();
 
-  // снимок исходных значений для сравнения в режиме редактирования
   final HabitEditorDraft _initial = HabitEditorDraft();
 
-  int _dir = 1; // 1 = вперёд (справа->налево), -1 = назад (слева->направо)
+  int _dir = 1;
 
   bool _closing = false;
   int _step = 0;
@@ -162,14 +155,12 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
       _goalCtrl.text = _draft.goal;
     }
 
-    // ✅ фиксируем «исходное» состояние для сравнения при выходе
     _initial
       ..name = _draft.name
       ..description = _draft.description
       ..goal = _draft.goal
       ..frequency = _draft.frequency;
 
-    // EDIT: пропускаем только интро (0), начинаем с name (1)
     if (widget.isEdit) _step = 1;
   }
 
@@ -258,23 +249,22 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
 
   bool get _ctaEnabled {
     switch (_step) {
-      case 1: // name
+      case 1:
         return _draft.name.trim().isNotEmpty;
-      case 2: // description
+      case 2:
         return _draft.description.trim().isNotEmpty;
-      case 3: // goal (и для bad тоже)
+      case 3:
         return _draft.goal.trim().isNotEmpty;
-      case 4: // frequency только для good
+      case 4:
         return widget.isGood ? _draft.frequency != null : true;
       default:
-        return true; // intro/final
+        return true;
     }
   }
 
   String get _ctaText {
     final isGood = widget.isGood;
 
-    // Режим редактирования
     if (widget.isEdit) {
       if (isGood) {
         switch (_step) {
@@ -292,7 +282,6 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
             return 'Done';
         }
       } else {
-        // bad: без frequency
         switch (_step) {
           case 1:
             return 'Edit habit name';
@@ -308,7 +297,6 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
       }
     }
 
-    // Режим создания
     if (isGood) {
       switch (_step) {
         case 0:
@@ -360,14 +348,10 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
               switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, animation) {
                 final tween = Tween<Offset>(
-                  begin: Offset(
-                    _dir.toDouble(),
-                    0,
-                  ), // 1 => справа->налево, -1 => слева->направо
+                  begin: Offset(_dir.toDouble(), 0),
                   end: Offset.zero,
                 ).chain(CurveTween(curve: Curves.easeOutCubic));
                 return ClipRect(
-                  // чтобы не было «хвостов» за пределами
                   child: SlideTransition(
                     position: animation.drive(tween),
                     child: child,
@@ -394,7 +378,7 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
                       Navigator.of(context).pop();
                     }
                   },
-                  contentKey: ValueKey(_step), // ключ шага
+                  contentKey: ValueKey(_step),
                   slideForward: _dir == 1,
                   trailingActions: (widget.isEdit && _isLastStep)
                       ? [
@@ -443,11 +427,9 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
                               if (ok == true) {
                                 _closing = true;
                                 if (mounted) {
-                                  Navigator.of(
-                                    context,
-                                  ).pop(); // закрыть редактор
+                                  Navigator.of(context).pop();
                                 }
-                                // вызвать onDelete после закрытия
+
                                 WidgetsBinding.instance.addPostFrameCallback((
                                   _,
                                 ) {
@@ -550,14 +532,13 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
 
       case 4:
         if (!isGood) {
-          // Bad: финальный текст
           return IntroTextHabit(
             text:
                 "You're about to ${widget.isEdit ? 'save changes to' : 'track'} a habit that's holding you back.\nStay consistent — awareness turns into progress.",
             pad: pad(),
           );
         }
-        // Good: выбор частоты
+
         return FrequencyPickerHabit(
           value: _draft.frequency,
           onChanged: (f) => setState(() => _draft.frequency = f),

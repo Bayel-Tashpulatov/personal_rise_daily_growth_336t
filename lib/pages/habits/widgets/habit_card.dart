@@ -4,7 +4,6 @@ import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/habits_main_page.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
-/// Карточка привычки
 class GoodBadHabitCard extends StatelessWidget {
   final HabitVm item;
   final VoidCallback onTap;

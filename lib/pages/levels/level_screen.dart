@@ -24,7 +24,7 @@ class _LevelScreenState extends State<LevelScreen> {
   @override
   void initState() {
     super.initState();
-    // подхватить текущее состояние после монтирования
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ach = context.read<AchievementsCubit>().state;
       _lastAchievedIds = _achievedIds(ach);
@@ -37,10 +37,8 @@ class _LevelScreenState extends State<LevelScreen> {
       .toSet();
 
   List<AchievementProgress> _pickNearestThree(List<AchievementProgress> all) {
-    // только незакрытые
     final list = all.where((a) => !a.achieved).toList();
 
-    // приоритет категорий как в макете
     const order = [
       AchievementKind.streakDays,
       AchievementKind.savedMoney,
@@ -51,10 +49,10 @@ class _LevelScreenState extends State<LevelScreen> {
       final sameKind = list.where((a) => a.def.kind == k).toList();
       if (sameKind.isEmpty) return null;
       sameKind.sort((a, b) {
-        final ra = a.def.target - a.current; // сколько осталось
+        final ra = a.def.target - a.current;
         final rb = b.def.target - b.current;
         if (ra != rb) return ra.compareTo(rb);
-        // равные — берём с меньшей целью (проще)
+
         return a.def.target.compareTo(b.def.target);
       });
       return sameKind.first;
@@ -66,7 +64,7 @@ class _LevelScreenState extends State<LevelScreen> {
       if (p != null) result.add(p);
       if (result.length == 3) break;
     }
-    // если категорий не хватило — добьём любыми ближайшими
+
     if (result.length < 3) {
       final rest =
           list.where((a) => !result.any((r) => r.def.id == a.def.id)).toList()
@@ -96,13 +94,16 @@ class _LevelScreenState extends State<LevelScreen> {
         children: [
           Stack(
             children: [
-              SizedBox(
+              RepaintBoundary(
                 key: _bgKey,
-                height: 560.h,
-                width: double.infinity,
-                child: Image.asset(
-                  'assets/images/level_${s.level}.png',
-                  fit: BoxFit.cover,
+                child: SizedBox(
+                  key: _bgKey,
+                  height: 560.h,
+                  width: double.infinity,
+                  child: Image.asset(
+                    'assets/images/level_${s.level}.png',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
 
@@ -197,6 +198,8 @@ class _LevelScreenState extends State<LevelScreen> {
 
           Expanded(
             child: ListView(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
               padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 24.h),
               children: [
                 Row(

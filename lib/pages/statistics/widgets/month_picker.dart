@@ -24,11 +24,6 @@ extension _MonthNames on MonthKey {
   static String label(int m) => names[m - 1];
 }
 
-/// Двухколёсный Month/Year picker «как в макете»
-/// - Центр экрана
-/// - Единая синяя лента на обе колонки
-/// - Видны все месяцы/годы, но выбрать можно только из options и не позже now.
-/// - Недоступные — приглушены и не фиксируются: колесо отщёлкивает к ближайшему доступному.
 Future<MonthKey?> pickMonth(
   BuildContext context, {
   required List<MonthKey> options,
@@ -36,33 +31,26 @@ Future<MonthKey?> pickMonth(
 }) async {
   if (options.isEmpty) return null;
 
-  // ---- ограничение по "не позже текущего"
   final now = DateTime.now();
   bool _notAfterNow(MonthKey mk) =>
       (mk.y < now.year) || (mk.y == now.year && mk.m <= now.month);
 
-  // финальный набор допустимых (и существующих в данных, и не позже текущего)
   final allowedSet = {
     for (final mk in options)
       if (_notAfterNow(mk)) mk,
   };
 
-  // года (все, что в options), но будем помечать те, где нет допустимых месяцев
   final years = SplayTreeSet<int>()..addAll(options.map((e) => e.y));
   final yearsList = years.toList();
 
-  // доступные месяцы с учётом now
   Set<int> allowedMonthsForYear(int y) =>
       allowedSet.where((e) => e.y == y).map((e) => e.m).toSet();
 
-  // стартовые индексы
   int yearIndex = (yearsList.indexOf(initial.y)).clamp(0, yearsList.length - 1);
   int selectedYear = yearsList[yearIndex];
   int selectedMonth = initial.m;
 
-  // если старт недопустим — прижать к ближайшему допустимому
   MonthKey _nearestAllowed(int y, int m) {
-    // 1) попытаться в том же году
     final inYear = allowedMonthsForYear(y).toList()..sort();
     if (inYear.isNotEmpty) {
       int best = inYear.first, bestDist = (best - m).abs();
@@ -75,7 +63,7 @@ Future<MonthKey?> pickMonth(
       }
       return MonthKey(y, best);
     }
-    // 2) найти ближайший год с данными
+
     int bestYear = y, bestYearDist = 1 << 30;
     for (final yy in yearsList) {
       if (allowedMonthsForYear(yy).isEmpty) continue;
@@ -86,10 +74,9 @@ Future<MonthKey?> pickMonth(
       }
     }
     if (allowedMonthsForYear(bestYear).isEmpty) {
-      // вообще нет допустимых (все позже now) — вернём null-подобное
       return MonthKey(y, m);
     }
-    // ближний месяц в найденном году
+
     final list = allowedMonthsForYear(bestYear).toList()..sort();
     int mm = list.first, dist = (mm - m).abs();
     for (final a in list) {
@@ -102,7 +89,6 @@ Future<MonthKey?> pickMonth(
     return MonthKey(bestYear, mm);
   }
 
-  // поджать старт, если нельзя
   if (!allowedSet.contains(MonthKey(selectedYear, selectedMonth))) {
     final near = _nearestAllowed(selectedYear, selectedMonth);
     if (allowedSet.contains(near)) {
@@ -120,7 +106,6 @@ Future<MonthKey?> pickMonth(
     if (!allowedSet.contains(MonthKey(selectedYear, selectedMonth)) &&
         allowedSet.contains(near)) {
       if (near.y != selectedYear) {
-        // сменить год, если пришлось
         selectedYear = near.y;
         yearCtrl.animateToItem(
           yearsList.indexOf(selectedYear),
@@ -150,7 +135,6 @@ Future<MonthKey?> pickMonth(
     builder: (_) => SafeArea(
       top: false,
       child: Center(
-        // жёстко центрируем карточку
         child: Padding(
           padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
           child: StatefulBuilder(
@@ -169,7 +153,6 @@ Future<MonthKey?> pickMonth(
                     children: [
                       Row(
                         children: [
-                          // ---------- MONTH wheel
                           Expanded(
                             child: CupertinoPicker(
                               itemExtent: 24.h,
@@ -180,7 +163,7 @@ Future<MonthKey?> pickMonth(
                               selectionOverlay: const SizedBox.shrink(),
                               onSelectedItemChanged: (i) {
                                 selectedMonth = i + 1;
-                                // если запрещено — сразу отщёлкнуть
+
                                 if (monthIsDisabled(
                                   selectedYear,
                                   selectedMonth,
@@ -215,7 +198,7 @@ Future<MonthKey?> pickMonth(
                             ),
                           ),
                           SizedBox(width: 12.w),
-                          // ---------- YEAR wheel
+
                           Expanded(
                             child: CupertinoPicker(
                               itemExtent: 36.h,
@@ -228,8 +211,6 @@ Future<MonthKey?> pickMonth(
                                 final newYear = yearsList[i];
                                 final disabled = yearIsDisabled(newYear);
                                 if (disabled) {
-                                  // нельзя зафиксировать такой год — отщёлкнуть обратно к ближайшему
-                                  // ищем ближайший год с допустимыми месяцами
                                   int bestIdx = i, bestDist = 1 << 30;
                                   for (int k = 0; k < yearsList.length; k++) {
                                     if (yearIsDisabled(yearsList[k])) continue;
@@ -250,7 +231,7 @@ Future<MonthKey?> pickMonth(
                                   HapticFeedback.selectionClick();
                                 } else {
                                   selectedYear = newYear;
-                                  // если выбранный месяц в этом году запрещён — отщёлкнем
+
                                   if (monthIsDisabled(
                                     selectedYear,
                                     selectedMonth,
@@ -279,7 +260,6 @@ Future<MonthKey?> pickMonth(
                         ],
                       ),
 
-                      // ---------- единая синяя лента
                       IgnorePointer(
                         child: Container(
                           height: 36.h,
@@ -291,7 +271,6 @@ Future<MonthKey?> pickMonth(
                         ),
                       ),
 
-                      // ---------- активные подписи поверх ленты
                       Positioned.fill(
                         child: Row(
                           children: [

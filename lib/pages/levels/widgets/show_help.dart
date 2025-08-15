@@ -1,39 +1,49 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
+import 'dart:ui' as ui;
 
 OverlayEntry? _levelHelpEntry;
 
-void showLevelHelp(
+Future<void> showLevelHelp(
   BuildContext context,
   LayerLink link, {
-  required GlobalKey bgKey, // где размывать фото
+  required GlobalKey bgKey,
   double anchorSize = 44,
-  Widget? content, // <— новый параметр
-}) {
+  Widget? content,
+}) async {
   _levelHelpEntry?.remove();
   _levelHelpEntry = null;
 
-  final bgBox = bgKey.currentContext?.findRenderObject() as RenderBox?;
-  final bgOffset = bgBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-  final bgSize = bgBox?.size ?? Size.zero;
+  final box = bgKey.currentContext?.findRenderObject() as RenderBox?;
+  final boundary =
+      bgKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+  if (box == null || boundary == null) return;
+
+  final bgOffset = box.localToGlobal(Offset.zero);
+  final bgSize = box.size;
+
+  final dpr = MediaQuery.of(context).devicePixelRatio;
+  ui.Image? shot;
+  try {
+    shot = await boundary.toImage(pixelRatio: dpr);
+  } catch (_) {}
 
   void hide() {
     _levelHelpEntry?.remove();
     _levelHelpEntry = null;
+    shot?.dispose();
   }
 
-  // final bubbleDx = -(maxBubbleW - anchorSize); // выравниваем правые края
   final screenW = MediaQuery.of(context).size.width;
   final maxBubbleW = (screenW - 24).clamp(0, 320).toDouble();
 
-  // базовый оффсет — под кнопкой
   var bubbleOffset = Offset(-(maxBubbleW - anchorSize), anchorSize + 8);
 
-  // если вдруг выходим за левый край — подвигать вправо
-  final anchorGlobal = link.leader?.offset ?? Offset.zero;
-  final bubbleLeft = anchorGlobal.dx + bubbleOffset.dx;
+  final anchorTopLeft = link.leader?.offset ?? Offset.zero;
+  final bubbleLeft = anchorTopLeft.dx + bubbleOffset.dx;
   final bubbleRight = bubbleLeft + maxBubbleW;
   if (bubbleLeft < 12) {
     bubbleOffset = bubbleOffset.translate(12 - bubbleLeft, 0);
@@ -45,7 +55,6 @@ void showLevelHelp(
   _levelHelpEntry = OverlayEntry(
     builder: (ctx) => Stack(
       children: [
-        // --- 1) Размыть ТОЛЬКО фото ---
         Positioned(
           left: bgOffset.dx,
           top: bgOffset.dy,
@@ -54,48 +63,25 @@ void showLevelHelp(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: hide,
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: const SizedBox.expand(),
-              ),
-            ),
+            child: shot == null
+                ? Container(color: Colors.black.withOpacity(0.25))
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ImageFiltered(
+                        imageFilter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: RawImage(image: shot, fit: BoxFit.cover),
+                      ),
+
+                      Container(color: Colors.black.withOpacity(0.25)),
+                    ],
+                  ),
           ),
         ),
 
-        // --- 2) Размыть САМУ кнопку "?" кругом (но не мешать тачам) ---
-        IgnorePointer(
-          ignoring: true, // тапы проходят сквозь
-          child: // «Клон» кнопки поверх размытия, тапы проходят к настоящей кнопке
-          CompositedTransformFollower(
-            link: link,
-            showWhenUnlinked: false,
-            child: IgnorePointer(
-              ignoring: true,
-              child: Container(
-                width: anchorSize,
-                height: anchorSize,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundLevel2,
-                  borderRadius: BorderRadius.circular(34.r),
-                ),
-                child: Image.asset(
-                  'assets/icons/question_mark.png',
-                  color: AppColors.textlevel1,
-                  width: 16.sp,
-                  height: 16.sp,
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // --- 3) Пузырь (выровнен по правому краю кнопки, не «улетает») ---
         CompositedTransformFollower(
           link: link,
           showWhenUnlinked: false,
-
           offset: bubbleOffset,
           child: _SpeechBubble(
             color: AppColors.backgroundLevel2,
@@ -105,12 +91,7 @@ void showLevelHelp(
             tailSide: BubbleSide.top,
             tailWidth: 20,
             tailHeight: 20,
-            tailX:
-                (anchorSize / 2) +
-                (-(bubbleOffset.dx)).clamp(
-                  0,
-                  maxBubbleW,
-                ), // хвост остаётся «на кнопке»
+            tailX: (anchorSize / 2) + (-(bubbleOffset.dx)).clamp(0, maxBubbleW),
             child: content ?? const HelpContentLevel(),
           ),
         ),
@@ -119,6 +100,7 @@ void showLevelHelp(
   );
 
   Overlay.of(context, rootOverlay: true).insert(_levelHelpEntry!);
+
   Future.delayed(const Duration(seconds: 6), () {
     if (_levelHelpEntry != null) hide();
   });
@@ -210,7 +192,7 @@ class _SpeechBubble extends StatelessWidget {
   final double radius;
   final EdgeInsets padding;
   final BubbleSide tailSide;
-  final double tailX; // позиция хвоста вдоль стороны (px)
+  final double tailX;
   final double tailWidth;
   final double tailHeight;
   final double? maxWidth;
@@ -275,7 +257,6 @@ class _BubblePainter extends CustomPainter {
 
     final path = Path()..addRRect(rect);
 
-    // Добавляем «хвостик» в тот же path (без шва)
     switch (tailSide) {
       case BubbleSide.top:
         {
@@ -315,9 +296,13 @@ class _BubblePainter extends CustomPainter {
         }
     }
 
-    // мягкая тень
-    canvas.drawShadow(path, Colors.black.withOpacity(.6), elevation, true);
-    // сам пузырь
+    canvas.drawShadow(
+      path,
+      Colors.black.withValues(alpha: .6),
+      elevation,
+      true,
+    );
+
     final paint = Paint()..color = color;
     canvas.drawPath(path, paint);
   }

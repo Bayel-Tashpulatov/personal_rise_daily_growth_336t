@@ -48,10 +48,10 @@ extension StatsSelectors on HabitsCubit {
 
   List<({Habit habit, int total})> topHabits({
     required MonthKey mk,
-    required bool positive, // true = good(+), false = bad(-)
+    required bool positive,
     int limit = 3,
   }) {
-    final map = <String, int>{}; // habitId -> sum
+    final map = <String, int>{};
     for (final l in state.logs) {
       if (l.date.year == mk.y && l.date.month == mk.m) {
         if (positive && l.amount > 0) {
@@ -83,18 +83,15 @@ extension StatsSelectors on HabitsCubit {
 
   List<({Habit habit, int total, int monthsCovered})> topHabitsForWindow({
     required MonthKey mk,
-    required bool positive, // true=good(+), false=bad(-)
+    required bool positive,
     required int windowMonths,
     int limit = 3,
   }) {
-    // соберём даты-границы окна
-    DateTime end = DateTime(mk.y, mk.m, 1); // первый день выбранного месяца
+    DateTime end = DateTime(mk.y, mk.m, 1);
     DateTime start = DateTime(end.year, end.month - (windowMonths - 1), 1);
 
-    // сгруппируем логи по привычкам
     final byId = <String, List<HabitLog>>{};
     for (final l in state.logs) {
-      // берём **только** логи внутри окна
       final d = DateTime(l.date.year, l.date.month, 1);
       if (d.isBefore(start) || d.isAfter(end)) continue;
 
@@ -104,8 +101,6 @@ extension StatsSelectors on HabitsCubit {
       (byId[l.habitId] ??= []).add(l);
     }
 
-    // посчитаем сумму и покрытые месяцы
-    // monthsCovered — число уникальных месяцев, где у этой привычки были логи в окне
     final items = <({Habit habit, int total, int monthsCovered})>[];
     final allHabits = {for (final h in state.habits) h.id: h};
 
@@ -114,9 +109,9 @@ extension StatsSelectors on HabitsCubit {
       if (h == null) return;
 
       int sum = 0;
-      final covered = <String>{}; // "YYYY-MM"
+      final covered = <String>{};
       for (final l in logs) {
-        sum += positive ? l.amount : -l.amount; // bad — модуль
+        sum += positive ? l.amount : -l.amount;
         covered.add(
           '${l.date.year}-${l.date.month.toString().padLeft(2, '0')}',
         );
@@ -125,7 +120,6 @@ extension StatsSelectors on HabitsCubit {
       items.add((habit: h, total: sum, monthsCovered: covered.length));
     });
 
-    // отсортируем по сумме по убыванию
     items.sort((a, b) => b.total.compareTo(a.total));
     return items.take(limit).toList();
   }

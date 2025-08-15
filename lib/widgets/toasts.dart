@@ -1,4 +1,3 @@
-// lib/widgets/global_toasts.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -6,7 +5,7 @@ import 'package:personal_rise_daily_growth_336t/cubit/level_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/cubit/achievements_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/main.dart';
 import 'package:personal_rise_daily_growth_336t/models/level_models.dart';
-import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart'; // appNavigatorKey
+import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class GlobalToasts extends StatefulWidget {
   const GlobalToasts({super.key, required this.child});
@@ -18,6 +17,7 @@ class GlobalToasts extends StatefulWidget {
 
 class _GlobalToastsState extends State<GlobalToasts> {
   Set<String> _lastAchieved = const {};
+  final Set<String> _toastsShown = {};
 
   @override
   void initState() {
@@ -77,13 +77,13 @@ class _GlobalToastsState extends State<GlobalToasts> {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
-        // level up
         BlocListener<LevelCubit, LevelState>(
           listenWhen: (prev, curr) => prev.level != curr.level,
           listener: (_, _) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _showToast(
                 _ToastSurface(
+                  height: 100.h,
                   leading: Image.asset(
                     'assets/icons/star.png',
                     width: 24.w,
@@ -98,22 +98,26 @@ class _GlobalToastsState extends State<GlobalToasts> {
             });
           },
         ),
-        // new achievement
+
         BlocListener<AchievementsCubit, AchievementsState>(
           listenWhen: (prev, curr) =>
-              _achievedIds(curr).length > _achievedIds(prev).length,
+              _achievedIds(curr).length != _achievedIds(prev).length,
           listener: (_, curr) {
             final now = _achievedIds(curr);
             final diff = now.difference(_lastAchieved);
-            if (diff.isNotEmpty) {
+
+            final fresh = diff
+                .where((id) => !_toastsShown.contains(id))
+                .toList();
+            if (fresh.isNotEmpty) {
               final newly = curr.snapshot.achievements.firstWhere(
-                (a) => a.achieved && diff.contains(a.def.id),
-                orElse: () =>
-                    curr.snapshot.achievements.firstWhere((a) => a.achieved),
+                (a) => a.achieved && fresh.contains(a.def.id),
               );
+              _toastsShown.add(newly.def.id);
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 _showToast(
                   _ToastSurface(
+                    height: 100.h,
                     leading: Image.asset(
                       'assets/icons/cup.png',
                       width: 24.w,
@@ -134,17 +138,18 @@ class _GlobalToastsState extends State<GlobalToasts> {
   }
 }
 
-/// Визуальная часть тоста (как в макете)
 class _ToastSurface extends StatelessWidget {
   const _ToastSurface({
     required this.leading,
     required this.title,
     required this.subtitle,
+    this.height = 64,
   });
 
   final Widget leading;
   final String title;
   final String subtitle;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -152,9 +157,9 @@ class _ToastSurface extends StatelessWidget {
     final maxW = screenW.clamp(0, 420).toDouble();
 
     return Container(
-      constraints: BoxConstraints(maxWidth: maxW),
+      constraints: BoxConstraints(maxWidth: maxW, maxHeight: height),
       margin: EdgeInsets.symmetric(horizontal: 16.w),
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(
         color: AppColors.backgroundLevel2,
         borderRadius: BorderRadius.circular(12.r),
@@ -164,13 +169,19 @@ class _ToastSurface extends StatelessWidget {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          leading,
+          SizedBox(
+            width: 24.w,
+            height: 24.w,
+            child: FittedBox(child: leading),
+          ),
           SizedBox(width: 6.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -187,6 +198,8 @@ class _ToastSurface extends StatelessWidget {
                 SizedBox(height: 6.h),
                 Text(
                   subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 15.sp,
@@ -204,7 +217,6 @@ class _ToastSurface extends StatelessWidget {
   }
 }
 
-/// Анимированная оболочка: выезд справа + fade, автоисчезновение
 class _AnimatedToastBanner extends StatefulWidget {
   const _AnimatedToastBanner({
     required this.child,
@@ -239,7 +251,7 @@ class _AnimatedToastBannerState extends State<_AnimatedToastBanner>
   void initState() {
     super.initState();
     _ac.forward();
-    // авто-hide
+
     Future.delayed(widget.duration, () async {
       if (!mounted) return;
       await _ac.reverse();

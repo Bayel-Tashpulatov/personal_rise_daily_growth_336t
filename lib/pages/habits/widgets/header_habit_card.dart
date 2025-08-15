@@ -1,18 +1,17 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
-/// Хедер с прогресс-кругом и заголовками
 class HeaderHabitCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String moneyLabel;
   final int moneyValue;
-  final double progress; // 0..1
+  final double progress;
   final bool positive;
 
-  const HeaderHabitCard({super.key, 
+  const HeaderHabitCard({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.moneyLabel,

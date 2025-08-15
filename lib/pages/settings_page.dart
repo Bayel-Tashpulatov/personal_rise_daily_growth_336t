@@ -12,26 +12,11 @@ class SettingsPage extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16.w, 80.h, 16.w, 24.h),
         child: Column(
           children: [
-            SettingSection(
-              title: 'Privacy Policy',
-              onTap: () {
-                // Handle tap
-              },
-            ),
+            SettingSection(title: 'Privacy Policy', onTap: () {}),
             SizedBox(height: 8.h),
-            SettingSection(
-              title: 'Terms Of Use',
-              onTap: () {
-                // Handle tap
-              },
-            ),
+            SettingSection(title: 'Terms Of Use', onTap: () {}),
             SizedBox(height: 8.h),
-            SettingSection(
-              title: 'Support',
-              onTap: () {
-                // Handle tap
-              },
-            ),
+            SettingSection(title: 'Support', onTap: () {}),
           ],
         ),
       ),

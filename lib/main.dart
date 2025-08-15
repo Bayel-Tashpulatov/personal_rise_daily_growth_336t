@@ -49,12 +49,11 @@ class PersonalRiseDailyGrowth extends StatelessWidget {
             ),
           ],
           child: MaterialApp(
-            navigatorKey: appNavigatorKey, // ← важное место
+            navigatorKey: appNavigatorKey,
             debugShowCheckedModeBanner: false,
             theme: ThemeData.dark(),
             home: const PrSplashScreen(),
             builder: (context, child) {
-              // ВСТАВЛЯЕМ ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ ЗДЕСЬ
               return GlobalToasts(child: child!);
             },
           ),

@@ -14,7 +14,6 @@ class HabitDetailsPage extends StatelessWidget {
   final Habit habit;
   const HabitDetailsPage({super.key, required this.habit});
 
-  // Если у Habit есть frequencyIndex (0..3), маппим в лейбл
   String? _freqLabel(int? idx) {
     switch (idx) {
       case 0:
@@ -30,7 +29,6 @@ class HabitDetailsPage extends StatelessWidget {
     }
   }
 
-  // Если у Habit есть goal (String?)
   String? _goalText(String? goal) {
     final String? g = goal?.trim();
     if (g == null || g.trim().isEmpty) return null;
@@ -40,7 +38,7 @@ class HabitDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<HabitsCubit>();
-    final logs = c.entriesOf(habit.id); // отсортированы по дате (новые сверху)
+    final logs = c.entriesOf(habit.id);
 
     final isGood = habit.kind == HabitKind.good;
     final money = _sumMoney(logs, isGood: isGood);
@@ -98,9 +96,8 @@ class HabitDetailsPage extends StatelessWidget {
                   kind: habit.kind,
                   initialHabit: habit,
                   onDone: (draft) async {
-                    // сохранить правки
                     final freqIndex = habit.kind == HabitKind.good
-                        ? indexFromFreq(draft.frequency) // твоя утилита
+                        ? indexFromFreq(draft.frequency)
                         : null;
                     final updated = habit.copyWith(
                       name: draft.name,
@@ -111,9 +108,8 @@ class HabitDetailsPage extends StatelessWidget {
                     await context.read<HabitsCubit>().updateHabit(updated);
                   },
                   onDelete: () async {
-                    // Удаляем из стора...
                     await context.read<HabitsCubit>().deleteHabit(habit.id);
-                    // ...и закрываем страницу деталей (редактор уже сам закрылся)
+
                     if (Navigator.of(context).canPop()) {
                       Navigator.of(context).pop();
                     }
@@ -127,7 +123,6 @@ class HabitDetailsPage extends StatelessWidget {
         body: ListView(
           padding: EdgeInsets.fromLTRB(12.w, 24.h, 12.w, 24.h),
           children: [
-            // Header card: name + frequency + description
             _card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +183,6 @@ class HabitDetailsPage extends StatelessWidget {
             ),
             SizedBox(height: 12.h),
 
-            // Goal card
             if (goal != null)
               _card(
                 child: Column(
@@ -229,7 +223,6 @@ class HabitDetailsPage extends StatelessWidget {
               ),
             if (goal != null) SizedBox(height: 4.h),
 
-            // Stats row
             Row(
               children: [
                 Expanded(
@@ -347,7 +340,6 @@ class HabitDetailsPage extends StatelessWidget {
 
             SizedBox(height: 12.h),
 
-            // History
             ...logs.map((l) => _historyTile(context, l, isGood: isGood)),
           ],
         ),
@@ -355,35 +347,57 @@ class HabitDetailsPage extends StatelessWidget {
     );
   }
 
-  // ===== helpers =====
-
   int _sumMoney(List<HabitLog> list, {required bool isGood}) {
     if (isGood) {
-      // только положительные суммы
       return list.where((l) => l.amount > 0).fold(0, (s, l) => s + l.amount);
     } else {
-      // только отрицательные, как потери
       return list.where((l) => l.amount < 0).fold(0, (s, l) => s + (-l.amount));
     }
   }
 
   int _streak(List<HabitLog> list, {required bool good}) {
     if (list.isEmpty) return 0;
-    // множество дат, где было нужное событие
-    final set = list
-        .where((l) => good ? l.amount > 0 : l.amount < 0)
-        .map((l) => DateUtils.dateOnly(l.date))
-        .toSet();
-    var day = DateUtils.dateOnly(DateTime.now());
-    var s = 0;
-    while (set.contains(day)) {
-      s++;
-      day = day.subtract(const Duration(days: 1));
-    }
-    return s;
-  }
 
-  // ===== widgets =====
+    DateTime d(DateTime x) => DateTime(x.year, x.month, x.day);
+    final today = d(DateTime.now());
+
+    final daysGood = list
+        .where((l) => l.amount > 0)
+        .map((l) => d(l.date))
+        .toSet();
+    final daysSlip = list
+        .where((l) => l.amount < 0)
+        .map((l) => d(l.date))
+        .toSet();
+
+    int s = 0;
+    DateTime cursor;
+
+    if (good) {
+      cursor = daysGood.contains(today)
+          ? today
+          : today.subtract(const Duration(days: 1));
+      while (daysGood.contains(cursor)) {
+        s++;
+        cursor = cursor.subtract(const Duration(days: 1));
+      }
+      return s;
+    } else {
+      cursor = daysSlip.contains(today)
+          ? today.subtract(const Duration(days: 1))
+          : today;
+
+      final hasAnyLogs = list.isNotEmpty;
+      if (!hasAnyLogs) return 0;
+
+      while (!daysSlip.contains(cursor)) {
+        s++;
+
+        cursor = cursor.subtract(const Duration(days: 1));
+      }
+      return s;
+    }
+  }
 
   Widget _card({required Widget child}) {
     return Container(

@@ -5,9 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class ChartCard extends StatelessWidget {
-  final List<({String label, int saved, int lost})>
-  yearly; // строго 12 позиций (Jan..Dec)
-  final int highlightMonth; // 1..12
+  final List<({String label, int saved, int lost})> yearly;
+  final int highlightMonth;
 
   const ChartCard({
     super.key,
@@ -17,12 +16,10 @@ class ChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ширина одной «ячейки» месяца: сама колонка + ~12px визуального шага
-    final double monthCell = (24.0 + 12.0).w; // можно подстроить
+    final double monthCell = (24.0 + 12.0).w;
     final double chartHeight = 180.h;
-    final double yAxisGutter = 44.w; // фиксированная ось слева
+    final double yAxisGutter = 44.w;
 
-    // Нормализуем: всегда 12 записей
     final data = List<({String label, int saved, int lost})>.generate(
       12,
       (i) => i < yearly.length
@@ -30,14 +27,12 @@ class ChartCard extends StatelessWidget {
           : (label: _monthShort(i + 1), saved: 0, lost: 0),
     );
 
-    // ymax (красиво округляем вверх); если всё нули — показываем шкалу 0..100
     final maxVal = data.fold<int>(
       0,
       (m, e) => math.max(m, math.max(e.saved.abs(), e.lost.abs())),
     );
     final yMax = _niceCeil(maxVal);
 
-    // точки (по X — целые шаги 0..11; горизонтальный «зазор» даём через ширину канвы)
     final savedSpots = <FlSpot>[];
     final lostSpots = <FlSpot>[];
     for (int i = 0; i < 12; i++) {
@@ -45,7 +40,6 @@ class ChartCard extends StatelessWidget {
       lostSpots.add(FlSpot(i.toDouble(), data[i].lost.toDouble()));
     }
 
-    // Сам график — БЕЗ левых подписей (ось Y мы рисуем отдельно), но с сеткой
     final chart = SizedBox(
       width: monthCell * 12,
       height: chartHeight,
@@ -71,7 +65,7 @@ class ChartCard extends StatelessWidget {
             ),
             horizontalInterval: yMax == 0 ? 20 : (yMax / 5).toDouble(),
           ),
-          // оставим внешнюю рамку очень тонкой/незаметной
+
           borderData: FlBorderData(
             show: true,
             border: Border.symmetric(
@@ -89,12 +83,12 @@ class ChartCard extends StatelessWidget {
               sideTitles: SideTitles(showTitles: false),
             ),
             leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false), // <-- скрыли
+              sideTitles: SideTitles(showTitles: false),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 24, // чуть места под подписи
+                reservedSize: 24,
                 interval: 1,
                 getTitlesWidget: (v, _) {
                   final i = v.toInt();
@@ -121,7 +115,6 @@ class ChartCard extends StatelessWidget {
           ),
           lineTouchData: const LineTouchData(enabled: false),
           lineBarsData: [
-            // Saved — толстая зелёная линия + мягкая вертикальная заливка
             LineChartBarData(
               spots: savedSpots,
               isCurved: false,
@@ -130,7 +123,7 @@ class ChartCard extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [const Color(0xFF00BB22), const Color(0xFF00BB22)],
               ),
-              barWidth: 3.4, // толще
+              barWidth: 3.4,
               belowBarData: BarAreaData(
                 show: true,
                 gradient: LinearGradient(
@@ -144,7 +137,7 @@ class ChartCard extends StatelessWidget {
               ),
               dotData: const FlDotData(show: false),
             ),
-            // Lost — тоже толстая линия + лёгкая «тень» (полупрозр. заливка)
+
             LineChartBarData(
               spots: lostSpots,
               isCurved: false,
@@ -172,7 +165,6 @@ class ChartCard extends StatelessWidget {
       ),
     );
 
-    // Обложка карточки: слева фиксированная ось Y, справа — только график со скроллом
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
@@ -183,9 +175,8 @@ class ChartCard extends StatelessWidget {
         height: chartHeight,
         child: Stack(
           children: [
-            // 1) Скроллится только график (без левой оси)
             Positioned.fill(
-              left: yAxisGutter, // оставляем место под фиксированную ось
+              left: yAxisGutter,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 physics: const ClampingScrollPhysics(),
@@ -193,7 +184,6 @@ class ChartCard extends StatelessWidget {
               ),
             ),
 
-            // 2) Фиксированная ось Y с ценниками слева, поверх графика
             Positioned.fill(
               left: 0,
               right: null,
@@ -213,11 +203,9 @@ class _YAxisFixed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // должен совпадать с reservedSize из bottomTitles
-    const double bottomPad = 20.0; // место под месяцы
-    const double labelH = 14.0; // примерная высота текста
+    const double bottomPad = 20.0;
+    const double labelH = 14.0;
 
-    // те же «тики», что и на сетке — 6 линий
     final List<double> ticks = yMax == 0
         ? <double>[0, 100]
         : List<double>.generate(6, (i) => (yMax / 5.0) * i);
@@ -225,7 +213,7 @@ class _YAxisFixed extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, c) {
         final h = c.maxHeight;
-        final usable = h - bottomPad; // высота области графика
+        final usable = h - bottomPad;
         final range = (yMax == 0) ? 100.0 : yMax.toDouble();
 
         return SizedBox(
@@ -235,7 +223,7 @@ class _YAxisFixed extends StatelessWidget {
               for (final v in ticks)
                 Positioned(
                   left: 0,
-                  // размещаем в пределах области графика (над месяцами)
+
                   bottom:
                       ((v / range) * (usable - labelH)).clamp(
                         0.0,
@@ -255,8 +243,6 @@ class _YAxisFixed extends StatelessWidget {
   }
 }
 
-/// Helpers
-
 Widget _yLabel(String t) => Padding(
   padding: const EdgeInsets.only(left: 2),
   child: Text(
@@ -272,7 +258,6 @@ Widget _yLabel(String t) => Padding(
   ),
 );
 
-// Округление вверх до «красивого» диапазона
 int _niceCeil(int v) {
   if (v <= 0) return 100;
   const bases = [1, 2, 5];
@@ -285,8 +270,6 @@ int _niceCeil(int v) {
     scale *= 10;
   }
 }
-
-// Шаг сетки
 
 String _monthShort(int m) => const [
   'Jan',

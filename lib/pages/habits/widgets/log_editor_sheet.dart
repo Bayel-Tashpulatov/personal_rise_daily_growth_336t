@@ -1,4 +1,3 @@
-// lib/widgets/log_editor_sheet.dart
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +8,7 @@ import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 class LogEditorResult {
   final String note;
   final int amount;
-  final bool deleted; // true если нажали Delete в edit-режиме
+  final bool deleted;
   LogEditorResult(this.note, this.amount, {this.deleted = false});
 }
 
@@ -31,10 +30,8 @@ Future<LogEditorResult?> showLogEditorSheet(
     final amount = amountCtrl.text.trim();
 
     if (!isEdit) {
-      // режим добавления: показать диалог, только если что-то введено
       return note.isNotEmpty || amount.isNotEmpty;
     } else {
-      // режим редактирования: показать диалог, только если изменилось
       return note != _initNote || amount != _initAmount;
     }
   }
@@ -123,17 +120,13 @@ Future<LogEditorResult?> showLogEditorSheet(
                             final a = int.tryParse(amountCtrl.text.trim()) ?? 0;
                             Navigator.pop(
                               ctx,
-                              LogEditorResult(
-                                noteCtrl.text.trim(),
-                                a.abs(), // положительное число; знак ставим в Cubit
-                              ),
+                              LogEditorResult(noteCtrl.text.trim(), a.abs()),
                             );
                           }
 
                           return Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // header
                               Row(
                                 children: [
                                   InkWell(
@@ -181,7 +174,6 @@ Future<LogEditorResult?> showLogEditorSheet(
                               ),
                               SizedBox(height: 10.h),
 
-                              // Note
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
@@ -227,7 +219,6 @@ Future<LogEditorResult?> showLogEditorSheet(
                               ),
                               SizedBox(height: 10),
 
-                              // Amount
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
