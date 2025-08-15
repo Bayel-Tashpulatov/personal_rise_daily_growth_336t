@@ -1,4 +1,4 @@
-// lib/cubit/achievements_cubit.dart
+
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:personal_rise_daily_growth_336t/cubit/level_cubit.dart';
@@ -53,7 +53,7 @@ class AchievementsCubit extends Cubit<AchievementsState> {
     return super.close();
   }
 
-  // Удобные геттеры для UI
+  
   List<AchievementProgress> get onTheWay =>
       state.snapshot.achievements.where((a) => !a.achieved).toList();
 

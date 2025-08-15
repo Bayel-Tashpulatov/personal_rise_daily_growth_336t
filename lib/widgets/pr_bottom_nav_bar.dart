@@ -92,7 +92,7 @@ class _PrBottomNavBarState extends State<PrBottomNavBar> {
                 child: LayoutBuilder(
                   builder: (context, c) {
                     final count = _items.length;
-                    final bubble = 56.w;
+                    final bubble = 50.w;
                     final totalW = c.maxWidth;
 
                     final spacing = (totalW - count * bubble) / (count + 1);

@@ -83,12 +83,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
       positive: true,
       windowMonths: 7,
     );
-
     final topBad = hc.topHabitsForWindow(
       mk: selected,
       positive: false,
       windowMonths: 14,
     );
+
     final goodLabel = topGood.length <= 1
         ? 'For Last Month:'
         : 'For Last ${topGood.length} Months:';
@@ -184,9 +184,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
               ],
             ),
 
-            if (hc.state.habits.isEmpty) ...[
-              SizedBox(height: 16.h),
+            SizedBox(height: 16.h),
 
+            if (topGood.isNotEmpty) ...[
+              SizedBox(height: 16.h),
               TopSection(
                 title: 'Top Positive Habits',
                 positive: true,
@@ -201,6 +202,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     .toList(),
                 periodLabel: goodLabel,
               ),
+            ],
+
+            if (topBad.isNotEmpty) ...[
               SizedBox(height: 24.h),
               TopSection(
                 title: 'Top Negative Habits',
@@ -216,7 +220,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     .toList(),
                 periodLabel: badLabel,
               ),
-            ] else if (hc.state.habits.isNotEmpty) ...[
+            ],
+            if (topGood.isEmpty && topBad.isEmpty) ...[
               SizedBox(height: 90.h),
               Center(
                 child: Text(

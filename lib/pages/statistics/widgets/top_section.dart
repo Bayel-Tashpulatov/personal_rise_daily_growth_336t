@@ -35,14 +35,16 @@ class _TopSectionState extends State<TopSection> {
     super.initState();
     _pc = PageController();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.items.isNotEmpty) {
+    if (widget.items.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         final w = context.size?.width ?? MediaQuery.of(context).size.width;
         final h = _calcSlideHeight(context, widget.items[0], w);
-        setState(() => _cardHeight = h);
-        _heights[0] = h;
-      }
-    });
+        setState(() {
+          _cardHeight = h;
+          _heights[0] = h;
+        });
+      });
+    }
   }
 
   @override
@@ -120,9 +122,11 @@ class _TopSectionState extends State<TopSection> {
   @override
   Widget build(BuildContext context) {
     final icon = widget.positive ? 'add_positive.png' : 'add_negative.png';
-    final green = const Color(0xFF19D15C);
-    final red = const Color(0xFFFF3B30);
-
+    final green = AppColors.successAccent;
+    final red = AppColors.errorAccent;
+    if (widget.items.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

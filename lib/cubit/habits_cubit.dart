@@ -1,3 +1,538 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
@@ -17,6 +552,7 @@ class HabitsState {
       habits.where((h) => h.kind == HabitKind.good).toList();
   List<Habit> get bad => habits.where((h) => h.kind == HabitKind.bad).toList();
 
+  
   int get todayGoodPercent {
     final today = DateTime.now();
     final todayLogs = logs.where(
@@ -25,7 +561,7 @@ class HabitsState {
           l.date.month == today.month &&
           l.date.day == today.day,
     );
-
+    
     final goodCount = todayLogs.where((l) => l.amount > 0).length;
     return (goodCount * 10).clamp(0, 100);
   }
@@ -54,6 +590,7 @@ class HabitsState {
         .fold(0, (s, l) => s + (-l.amount));
   }
 
+  
   static bool _isBefore(DateTime a, DateTime b) {
     final da = DateTime(a.year, a.month, a.day);
     final db = DateTime(b.year, b.month, b.day);
@@ -75,6 +612,7 @@ class HabitsCubit extends Cubit<HabitsState> {
     _habitBox = Hive.box<Habit>('habits');
     _logBox = Hive.box<HabitLog>('habit_logs');
 
+    
     emit(
       HabitsState(
         habits: _habitBox.values.toList(),
@@ -82,6 +620,7 @@ class HabitsCubit extends Cubit<HabitsState> {
       ),
     );
 
+    
     _hSub = _habitBox.watch().listen((_) {
       emit(state.copyWith(habits: _habitBox.values.toList()));
     });
@@ -99,64 +638,14 @@ class HabitsCubit extends Cubit<HabitsState> {
     return super.close();
   }
 
-  DateTime _d(DateTime x) => DateTime(x.year, x.month, x.day);
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  
 
-  int currentStreakForHabit(String habitId, {required bool good}) {
-    final all = state.logs.where((l) => l.habitId == habitId).toList()
-      ..sort((a, b) => _d(b.date).compareTo(_d(a.date)));
-
-    if (all.isEmpty) return 0;
-
-    DateTime d(DateTime x) => DateTime(x.year, x.month, x.day);
-    final today = d(DateTime.now());
-
-    final daysGood = all
-        .where((l) => l.amount > 0)
-        .map((l) => _d(l.date))
-        .toSet();
-    final daysSlip = all
-        .where((l) => l.amount < 0)
-        .map((l) => _d(l.date))
-        .toSet();
-
-    final earliest = _d(all.last.date);
-
-    int streak = 0;
-    DateTime cursor;
-
-    if (good) {
-      cursor = daysGood.contains(today)
-          ? today
-          : today.subtract(const Duration(days: 1));
-      while (!cursor.isBefore(earliest)) {
-        if (!daysGood.contains(cursor)) break;
-        streak++;
-        cursor = cursor.subtract(const Duration(days: 1));
-      }
-    } else {
-      cursor = daysSlip.contains(today)
-          ? today.subtract(const Duration(days: 1))
-          : today;
-
-      if (all.isEmpty) return 0;
-
-      while (!cursor.isBefore(earliest)) {
-        if (daysSlip.contains(cursor)) break;
-        streak++;
-        cursor = cursor.subtract(const Duration(days: 1));
-      }
-    }
-
-    return streak;
-  }
-
+  
   Future<void> addGood({
     required String name,
     required String description,
     required String goal,
-    required HabitFrequency? frequency,
+    required HabitFrequency? frequency, 
   }) async {
     final freqIndex = switch (frequency) {
       HabitFrequency.daily => 0,
@@ -177,6 +666,7 @@ class HabitsCubit extends Cubit<HabitsState> {
     await _habitBox.put(h.id, h);
   }
 
+  
   Future<void> addBad({
     required String name,
     required String description,
@@ -188,7 +678,7 @@ class HabitsCubit extends Cubit<HabitsState> {
       description: description,
       kind: HabitKind.bad,
       goal: goal.isEmpty ? null : goal,
-      frequencyIndex: null,
+      frequencyIndex: null, 
     );
     await _habitBox.put(h.id, h);
   }
@@ -197,12 +687,14 @@ class HabitsCubit extends Cubit<HabitsState> {
 
   Future<void> deleteHabit(String id) async {
     await _habitBox.delete(id);
-
+    
     final forDelete = _logBox.values.where((l) => l.habitId == id).toList();
     for (final l in forDelete) {
       await _logBox.delete(l.id);
     }
   }
+
+  
 
   Future<HabitLog> addLogRaw({
     required String habitId,
@@ -210,16 +702,41 @@ class HabitsCubit extends Cubit<HabitsState> {
     required int amount,
     String? note,
   }) async {
+    
+    final String id = DateTime.now().microsecondsSinceEpoch.toString();
+
     final log = HabitLog(
-      id: UniqueKey().toString(),
+      id: id,
       habitId: habitId,
       date: DateTime(date.year, date.month, date.day),
       amount: amount,
       note: note,
     );
-    await _logBox.put(log.id, log);
 
-    levelCubit.applyLog(log);
+    debugPrint(
+      '📝 addLogRaw creating log id=$id habit=$habitId amount=$amount',
+    );
+
+    try {
+      debugPrint('📝 addLogRaw BEFORE hive.put key=$id');
+      await _logBox.put(id, log);
+      debugPrint(
+        '📝 addLogRaw AFTER hive.put key=$id (box length: ${_logBox.length})',
+      );
+    } catch (e, st) {
+      debugPrint('❌ Hive put FAILED: $e\n$st');
+      rethrow; 
+    }
+
+    
+    try {
+      
+      levelCubit.applyLog(log);
+      debugPrint('✅ levelCubit.applyLog OK');
+    } catch (e, st) {
+      debugPrint('❌ levelCubit.applyLog FAILED: $e\n$st');
+      
+    }
 
     return log;
   }
@@ -260,7 +777,53 @@ class HabitsCubit extends Cubit<HabitsState> {
   }
 
   Future<void> deleteLog(String id) async => _logBox.delete(id);
+  int currentStreakForHabit(String habitId, {required bool good}) {
+    final list = entriesOf(habitId);
+    if (list.isEmpty) return 0;
 
+    DateTime d(DateTime x) => DateTime(x.year, x.month, x.day);
+    final today = d(DateTime.now());
+
+    final daysGood = list
+        .where((l) => l.amount > 0)
+        .map((l) => d(l.date))
+        .toSet();
+    final daysSlip = list
+        .where((l) => l.amount < 0)
+        .map((l) => d(l.date))
+        .toSet();
+
+    final earliest = list
+        .map((l) => d(l.date))
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+
+    int s = 0;
+    DateTime cursor;
+
+    if (good) {
+      cursor = daysGood.contains(today)
+          ? today
+          : today.subtract(const Duration(days: 1));
+      while (!cursor.isBefore(earliest)) {
+        if (!daysGood.contains(cursor)) break;
+        s++;
+        cursor = cursor.subtract(const Duration(days: 1));
+      }
+    } else {
+      cursor = daysSlip.contains(today)
+          ? today.subtract(const Duration(days: 1))
+          : today;
+
+      while (!cursor.isBefore(earliest)) {
+        if (daysSlip.contains(cursor)) break; 
+        s++;
+        cursor = cursor.subtract(const Duration(days: 1));
+      }
+    }
+    return s;
+  }
+
+  
   List<HabitLog> entriesOf(String habitId) =>
       state.logs.where((l) => l.habitId == habitId).toList()
         ..sort((a, b) => b.date.compareTo(a.date));

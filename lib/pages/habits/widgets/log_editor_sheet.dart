@@ -36,42 +36,6 @@ Future<LogEditorResult?> showLogEditorSheet(
     }
   }
 
-  Future<bool> confirmExit() async {
-    if (!_isDirty()) return true;
-    final ok = await showCupertinoDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Hold On!'),
-        content: const Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text("Looks like you didn't save your work.\nExit anyway?"),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(
-              'Stay',
-              style: TextStyle(color: CupertinoColors.activeBlue),
-            ),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(
-              'Exit',
-              style: TextStyle(
-                color: CupertinoColors.activeBlue,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    return ok ?? false;
-  }
-
   final title = isEdit
       ? 'Edit Mark'
       : (isGood
@@ -90,6 +54,52 @@ Future<LogEditorResult?> showLogEditorSheet(
     transitionDuration: const Duration(milliseconds: 180),
     pageBuilder: (_, _, _) => const SizedBox.shrink(),
     transitionBuilder: (ctx, anim, _, _) {
+      Future<void> submit(BuildContext popCtx) async {
+        final a = int.tryParse(amountCtrl.text.trim());
+        if (a == null || a <= 0) return;
+        Navigator.of(
+          popCtx,
+          rootNavigator: true,
+        ).pop(LogEditorResult(noteCtrl.text.trim(), a));
+      }
+
+      
+      Future<bool> confirmExit() async {
+        if (!_isDirty()) return true;
+        final ok = await showCupertinoDialog<bool>(
+          context: ctx, 
+          barrierDismissible: false,
+          builder: (dCtx) => const CupertinoAlertDialog(
+            title: Text('Hold On!'),
+            content: Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                "Looks like you didn't save your work.\nExit anyway?",
+              ),
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: Text(
+                  'Stay',
+                  style: TextStyle(color: CupertinoColors.activeBlue),
+                ),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                child: Text(
+                  'Exit',
+                  style: TextStyle(
+                    color: CupertinoColors.activeBlue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        return ok ?? false;
+      }
+
       return BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 8 * anim.value,
@@ -112,16 +122,8 @@ Future<LogEditorResult?> showLogEditorSheet(
                       child: StatefulBuilder(
                         builder: (ctx, setSt) {
                           bool ctaEnabled() {
-                            final a = int.tryParse(amountCtrl.text.trim()) ?? 0;
-                            return a > 0;
-                          }
-
-                          Future<void> submit() async {
-                            final a = int.tryParse(amountCtrl.text.trim()) ?? 0;
-                            Navigator.pop(
-                              ctx,
-                              LogEditorResult(noteCtrl.text.trim(), a.abs()),
-                            );
+                            final a = int.tryParse(amountCtrl.text.trim());
+                            return a != null && a > 0;
                           }
 
                           return Column(
@@ -132,7 +134,10 @@ Future<LogEditorResult?> showLogEditorSheet(
                                   InkWell(
                                     onTap: () async {
                                       if (await confirmExit()) {
-                                        Navigator.pop(ctx, null);
+                                        Navigator.of(
+                                          ctx,
+                                          rootNavigator: true,
+                                        ).pop(null);
                                       }
                                     },
                                     child: Container(
@@ -287,9 +292,9 @@ Future<LogEditorResult?> showLogEditorSheet(
                                       padding: EdgeInsets.zero,
                                       onPressed: () async {
                                         final ok = await showCupertinoDialog<bool>(
-                                          context: ctx,
+                                          context: ctx, 
                                           barrierDismissible: false,
-                                          builder: (_) => CupertinoAlertDialog(
+                                          builder: (ctx) => CupertinoAlertDialog(
                                             title: const Text(
                                               'Final Confirmation',
                                             ),
@@ -329,9 +334,12 @@ Future<LogEditorResult?> showLogEditorSheet(
                                             ],
                                           ),
                                         );
+
                                         if (ok == true) {
-                                          Navigator.pop(
+                                          Navigator.of(
                                             ctx,
+                                            rootNavigator: true,
+                                          ).pop(
                                             LogEditorResult(
                                               '',
                                               0,
@@ -376,7 +384,9 @@ Future<LogEditorResult?> showLogEditorSheet(
                                     opacity: ctaEnabled() ? 1.0 : 0.3,
                                     child: CupertinoButton(
                                       padding: EdgeInsets.zero,
-                                      onPressed: ctaEnabled() ? submit : null,
+                                      onPressed: ctaEnabled()
+                                          ? () => submit(ctx)
+                                          : null,
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [

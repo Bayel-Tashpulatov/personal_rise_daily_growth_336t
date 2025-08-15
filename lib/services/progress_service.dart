@@ -20,7 +20,7 @@ class ProgressSnapshot {
 }
 
 class ProgressService {
-  static const int goodPoint = 1000;
+  static const int goodPoint = 1;
   static const int badPoint = -3;
 
   static LevelState applyPoints(LevelState prev, HabitLog log) {

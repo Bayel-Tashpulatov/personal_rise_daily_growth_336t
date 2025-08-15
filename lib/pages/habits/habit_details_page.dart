@@ -15,6 +15,7 @@ class HabitDetailsPage extends StatelessWidget {
   const HabitDetailsPage({super.key, required this.habit});
 
   String? _freqLabel(int? idx) {
+    if (idx == null || idx < 0) return null;
     switch (idx) {
       case 0:
         return 'Everyday';
@@ -42,7 +43,8 @@ class HabitDetailsPage extends StatelessWidget {
 
     final isGood = habit.kind == HabitKind.good;
     final money = _sumMoney(logs, isGood: isGood);
-    final streak = _streak(logs, good: isGood);
+    final streak = c.currentStreakForHabit(habit.id, good: isGood);
+
     final moneyColor = isGood ? AppColors.successAccent : AppColors.errorAccent;
 
     final today = DateTime.now();
@@ -322,17 +324,32 @@ class HabitDetailsPage extends StatelessWidget {
                 final res = await showLogEditorSheet(context, isGood: isGood);
                 if (res == null) return;
 
-                if (isGood) {
-                  await context.read<HabitsCubit>().markGoodDone(
-                    habitId: habit.id,
-                    amount: res.amount,
-                    note: res.note,
-                  );
-                } else {
-                  await context.read<HabitsCubit>().markBadSlip(
-                    habitId: habit.id,
-                    amountLost: res.amount,
-                    note: res.note,
+                debugPrint(
+                  '➡️ Done pressed: isGood=$isGood amount=${res.amount}',
+                );
+                try {
+                  if (!context.mounted) return;
+                  if (isGood) {
+                    debugPrint('→ markGoodDone(${habit.id}, ${res.amount})');
+                    await context.read<HabitsCubit>().markGoodDone(
+                      habitId: habit.id,
+                      amount: res.amount,
+                      note: res.note,
+                    );
+                  } else {
+                    debugPrint('→ markBadSlip(${habit.id}, ${res.amount})');
+                    await context.read<HabitsCubit>().markBadSlip(
+                      habitId: habit.id,
+                      amountLost: res.amount,
+                      note: res.note,
+                    );
+                  }
+                  debugPrint('✔️ saved ok');
+                } catch (e, st) {
+                  debugPrint('❌ save log failed: $e\n$st');
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to save, try again.')),
                   );
                 }
               },
@@ -352,50 +369,6 @@ class HabitDetailsPage extends StatelessWidget {
       return list.where((l) => l.amount > 0).fold(0, (s, l) => s + l.amount);
     } else {
       return list.where((l) => l.amount < 0).fold(0, (s, l) => s + (-l.amount));
-    }
-  }
-
-  int _streak(List<HabitLog> list, {required bool good}) {
-    if (list.isEmpty) return 0;
-
-    DateTime d(DateTime x) => DateTime(x.year, x.month, x.day);
-    final today = d(DateTime.now());
-
-    final daysGood = list
-        .where((l) => l.amount > 0)
-        .map((l) => d(l.date))
-        .toSet();
-    final daysSlip = list
-        .where((l) => l.amount < 0)
-        .map((l) => d(l.date))
-        .toSet();
-
-    int s = 0;
-    DateTime cursor;
-
-    if (good) {
-      cursor = daysGood.contains(today)
-          ? today
-          : today.subtract(const Duration(days: 1));
-      while (daysGood.contains(cursor)) {
-        s++;
-        cursor = cursor.subtract(const Duration(days: 1));
-      }
-      return s;
-    } else {
-      cursor = daysSlip.contains(today)
-          ? today.subtract(const Duration(days: 1))
-          : today;
-
-      final hasAnyLogs = list.isNotEmpty;
-      if (!hasAnyLogs) return 0;
-
-      while (!daysSlip.contains(cursor)) {
-        s++;
-
-        cursor = cursor.subtract(const Duration(days: 1));
-      }
-      return s;
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:personal_rise_daily_growth_336t/models/level_models.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
@@ -35,10 +36,15 @@ class LevelCubit extends Cubit<LevelState> {
   }
 
   bool applyLog(HabitLog log) {
-    final before = state;
-    final after = ProgressService.applyPoints(state, log);
-    emit(after);
-    return after.level > before.level;
+    try {
+      final before = state;
+      final after = ProgressService.applyPoints(before, log);
+      emit(after);
+      return after.level > before.level;
+    } catch (e, st) {
+      debugPrint('❌ ProgressService.applyPoints crashed: $e\n$st');
+      return false;
+    }
   }
 
   void resetForDemo(int level) {

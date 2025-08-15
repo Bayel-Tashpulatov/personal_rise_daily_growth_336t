@@ -139,6 +139,7 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
 
   bool _closing = false;
   int _step = 0;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -186,7 +187,7 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
   }
 
   void _back() async {
-    if (_step == 1) {
+    if (_step <= 1) {
       if (await _confirmExitIfDirty()) {
         if (_closing) return;
         _closing = true;
@@ -365,18 +366,36 @@ class _HabitEditorFlowState extends State<_HabitEditorFlow> {
                       ? "Let's Edit a ${isGood ? 'Good' : 'Bad'} Habit"
                       : "Let's Add a ${isGood ? 'Good' : 'Bad'} Habit",
                   onBack: _back,
-                  ctaEnabled: _ctaEnabled,
+                  ctaEnabled: !_submitting && _ctaEnabled,
                   ctaText: _ctaText,
                   onCta: () {
+                    if (_submitting) return;
+
                     final lastStep = widget.isGood ? 5 : 4;
                     if (_step < lastStep) {
                       _dir = 1;
                       _next();
-                    } else {
-                      _closing = true;
-                      widget.onDone(_draft);
+                      return;
+                    }
+
+                    _submitting = true;
+                    _closing = true;
+
+                    final doneDraft = HabitEditorDraft()
+                      ..name = _draft.name.trim()
+                      ..description = _draft.description.trim()
+                      ..goal = _draft.goal.trim()
+                      ..frequency = widget.isGood ? _draft.frequency : null;
+
+                    if (mounted) {
                       Navigator.of(context).pop();
                     }
+
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      try {
+                        widget.onDone(doneDraft);
+                      } catch (_) {}
+                    });
                   },
                   contentKey: ValueKey(_step),
                   slideForward: _dir == 1,

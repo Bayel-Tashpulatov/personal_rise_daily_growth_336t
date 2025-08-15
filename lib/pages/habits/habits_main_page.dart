@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/cubit/habits_cubit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit_log.dart';
+import 'package:personal_rise_daily_growth_336t/models/habit_vm.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/habit_details_page.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/add_habit_button.dart';
 import 'package:personal_rise_daily_growth_336t/pages/habits/widgets/habit_card.dart';
@@ -47,7 +48,9 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
                   ? (todayPercent > 0
                         ? 'Today You completed ${todayPercent.round()}% of your habbits'
                         : '-')
-                  : 'Today you triggered ${todayPercent.round()}% of your bad habits.',
+                  : (todayPercent > 0
+                        ? 'Today you triggered ${todayPercent.round()}% of your bad habits.'
+                        : '-'),
               moneyLabel: isPositive
                   ? 'This Week You Earned:'
                   : 'This Week You Lost:',
@@ -124,7 +127,11 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
             else ...[
               for (final vm in vms)
                 GoodBadHabitCard(
-                  item: vm,
+                  title: vm.title,
+                  subtitle: vm.subtitle,
+                  kind: vm.kind,
+                  todayCount: vm.todayCount,
+                  money: vm.money,
                   onTap: () {
                     final habit = habits.firstWhere((h) => h.id == vm.id);
                     Navigator.push(
@@ -135,6 +142,7 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
                     );
                   },
                 ),
+
               SizedBox(height: 12.h),
             ],
           ],
@@ -188,70 +196,21 @@ class _HabitsMainPageState extends State<HabitsMainPage> {
   }
 
   List<HabitVm> _buildVms(List<Habit> habits, List<HabitLog> logs) {
+    final today = DateUtils.dateOnly(DateTime.now());
     return habits.map((h) {
       final hLogs = logs.where((l) => l.habitId == h.id);
+      final todayCount = hLogs
+          .where((l) => DateUtils.isSameDay(l.date, today))
+          .length;
       final moneyAbs = hLogs.fold<int>(0, (s, l) => s + l.amount).abs();
-
-      final streak = (h.kind == HabitKind.good)
-          ? _streakGood(h.id, logs)
-          : _streakBadClean(h.id, logs);
-
       return HabitVm(
         id: h.id,
         title: h.name,
         subtitle: h.description,
         kind: h.kind,
-        streak: streak,
+        todayCount: todayCount,
         money: moneyAbs,
       );
     }).toList();
   }
-
-  int _streakGood(String habitId, Iterable<HabitLog> logs) {
-    final days = logs
-        .where((l) => l.habitId == habitId && l.amount > 0)
-        .map((l) => DateUtils.dateOnly(l.date))
-        .toSet();
-
-    var day = DateUtils.dateOnly(DateTime.now());
-    int streak = 0;
-    while (days.contains(day)) {
-      streak++;
-      day = day.subtract(const Duration(days: 1));
-    }
-    return streak;
-  }
-
-  int _streakBadClean(String habitId, Iterable<HabitLog> logs) {
-    final slipDays = logs
-        .where((l) => l.habitId == habitId && l.amount < 0)
-        .map((l) => DateUtils.dateOnly(l.date))
-        .toSet();
-
-    var day = DateUtils.dateOnly(DateTime.now());
-    int streak = 0;
-
-    while (!slipDays.contains(day)) {
-      streak++;
-      day = day.subtract(const Duration(days: 1));
-    }
-    return streak;
-  }
-}
-
-class HabitVm {
-  final String id;
-  final String title;
-  final String subtitle;
-  final HabitKind kind;
-  final int streak;
-  final int money;
-  const HabitVm({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.kind,
-    required this.streak,
-    required this.money,
-  });
 }

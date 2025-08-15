@@ -1,18 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:personal_rise_daily_growth_336t/models/habit.dart';
-import 'package:personal_rise_daily_growth_336t/pages/habits/habits_main_page.dart';
 import 'package:personal_rise_daily_growth_336t/theme/app_colors.dart';
 
 class GoodBadHabitCard extends StatelessWidget {
-  final HabitVm item;
+  final String title;
+  final String subtitle;
+  final HabitKind kind;
+  final int todayCount;
+  final int money;
   final VoidCallback onTap;
 
-  const GoodBadHabitCard({super.key, required this.item, required this.onTap});
+  const GoodBadHabitCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.kind,
+    required this.todayCount,
+    required this.money,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isGood = item.kind == HabitKind.good;
+    final isGood = kind == HabitKind.good;
     final moneyColor = isGood ? AppColors.successAccent : AppColors.errorAccent;
 
     return GestureDetector(
@@ -35,7 +46,7 @@ class GoodBadHabitCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          item.title,
+                          title,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15.sp,
@@ -45,7 +56,7 @@ class GoodBadHabitCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (item.streak > 0)
+                      if (todayCount > 0)
                         Row(
                           children: [
                             Image.asset(
@@ -57,7 +68,7 @@ class GoodBadHabitCard extends StatelessWidget {
                             ),
                             SizedBox(width: 2.w),
                             Text(
-                              '${item.streak}',
+                              '$todayCount',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 15.sp,
@@ -72,7 +83,7 @@ class GoodBadHabitCard extends StatelessWidget {
                   ),
                   SizedBox(height: 5.h),
                   Text(
-                    item.subtitle,
+                    subtitle,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 13.sp,
@@ -96,7 +107,7 @@ class GoodBadHabitCard extends StatelessWidget {
                           ),
                         ),
                         TextSpan(
-                          text: '\$${item.money}',
+                          text: '\$$money',
                           style: TextStyle(
                             color: moneyColor,
                             fontSize: 15.sp,
